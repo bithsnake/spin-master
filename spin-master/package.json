@@ -10,15 +10,18 @@
     "dev": "vite"
   },
   "dependencies": {
-    "pixi.js": "^8.9.2",
     "@esotericsoftware/spine-pixi-v8": "^4.2.81",
-    "@pixi/devtools": "^2.0.1"
+    "@pixi/devtools": "^2.0.1",
+    "howler": "^2.2.4",
+    "pixi.js": "^8.9.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
+    "@types/howler": "^2.2.12",
     "eslint": "^9.21.0",
     "eslint-config-prettier": "^10.1.2",
     "eslint-plugin-prettier": "^5.2.6",
+    "howler": "^2.2.4",
     "prettier": "^3.5.3",
     "typescript": "~5.7.3",
     "typescript-eslint": "^8.25.0",
