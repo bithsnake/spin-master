@@ -8,3 +8,4 @@ export const SYM04 = "SYM04";
 export const SYM05 = "SYM05";
 export const SYM06 = "SYM06";
 export const WIN_BG = "WIN_BG";
+export const TILE01 = "TILE01";

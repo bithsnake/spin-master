@@ -104,3 +104,9 @@ export type SpineInstanceSettings = {
   alpha: number;
   interactive: boolean;
 };
+
+export type TextOptions = {
+  anchorPoint?: AnchorPoint;
+  title: string;
+  textSize: number;
+};

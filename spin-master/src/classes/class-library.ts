@@ -8,11 +8,22 @@ import {
   TilingSprite,
 } from "pixi.js";
 import { IRenderable, IUpdatable } from "../interfaces/interfaces";
-import { AnchorPoint, FromSprite, Point, Size } from "../types/types";
+import {
+  AnchorPoint,
+  FromSprite,
+  Point,
+  Size,
+  TextOptions,
+} from "../types/types";
 import {
   approach,
+  canvasCenterX,
+  canvasCenterY,
   createSprite,
   createText,
+  createTiledSprite,
+  getAppScreenHeight,
+  getAppScreenWidth,
   playSound,
 } from "../utilities/tools";
 import { sfxPoint } from "../utilities/soundLibrary";
@@ -27,18 +38,19 @@ export class GlobalState implements IUpdatable {
   intervalMax = 5;
   interval = this.intervalMax;
   count = 0;
-  winsMax = 3;
-  wins = 0;
   time = 0;
-  timeMax = 3;
+  declare reel: Reel;
   elapsedTime = 0;
   dollarsMax = 100;
   currentDollars = this.dollarsMax;
+  currentWinAmount = 0;
+  currentWinAmountBuffer = 0;
+  betAmount = 1;
   winAmountTextPos: Point = { x: 0, y: 0 };
   soundtrack = null;
   timeOut = null;
   gameCanRun = false;
-  winAmountInst: UIText[] = []; // UiScoreText[];
+  winAmountInst: UICurrentWinText[] = [];
   doBlur = false;
   private _gameIsStared = false;
   private _finishedStage = false;
@@ -65,10 +77,11 @@ export class GlobalState implements IUpdatable {
     this.timer = 0;
     this.interval = this.intervalMax;
     this.count = 0;
-    this.wins = 0;
     this.time = 0;
     this.elapsedTime = 0;
     this.currentDollars = this.dollarsMax;
+    this.currentWinAmount = 0;
+    this.currentWinAmountBuffer = 0;
     this.timeOut = null;
     this.winAmountInst = [];
   }
@@ -144,10 +157,9 @@ export class Button extends GameObject {
   }
 }
 
-export class UIText extends GameObject {
+export class UICurrentWinText extends GameObject {
   self: Text;
   value: number;
-  static: boolean = true;
   timer = 0;
   private constructor(text: Text, value: number, global: GlobalState) {
     super();
@@ -156,6 +168,7 @@ export class UIText extends GameObject {
     this.initDefaultSizes();
     playSound(sfxPoint, 1);
     this.value = value;
+    global.currentWinAmountBuffer = this.value;
     global.app.stage.children.forEach((container) => {
       if (container.label === "gameContainer") {
         global.winAmountInst.push(this);
@@ -168,18 +181,18 @@ export class UIText extends GameObject {
     x: number,
     y: number,
     anchorPoint: AnchorPoint,
-    score: number,
+    win: number,
     global: GlobalState,
   ) {
     const text = await createText(x, y, anchorPoint, "", STYLE_KEY.normal, 2);
-    return new UIText(text, score, global);
+    return new UICurrentWinText(text, win, global);
   }
 
   update(global: { inst: GlobalState }): boolean {
-    return this.scoreTextRoutine(global.inst);
+    return this.routine(global.inst);
   }
 
-  private scoreTextRoutine(global: GlobalState): boolean {
+  private routine(global: GlobalState): boolean {
     this.timer++;
     this.self.text = `+${this.value}`;
 
@@ -203,25 +216,186 @@ export class UIText extends GameObject {
   }
 }
 
-/**
- * Class to create instances of classes asynchronously.
- */
-export class Instance {
-  /**
-   * Create an instance of the given class asynchronously.
-   * @param {number} x - x pos.
-   * @param {number} y - y pos.
-   * @param {C} cls - the class to create the instance of.
-   * @param {Options} [options] - options to pass to the class constructor.
-   * @returns {Promise<T>} - returns the instance of the class.
-   */
-  static async create<
-    C extends {
-      create: (x: number, y: number, options: unknown) => Promise<T>;
-    },
-    T = Awaited<ReturnType<C["create"]>>,
-    Options = Parameters<C["create"]>[2],
-  >(x: number, y: number, cls: C, options?: Options): Promise<T> {
-    return await cls.create(x, y, options);
+export class UIBalanceText extends GameObject {
+  self: Text;
+  title: string;
+  private constructor(text: Text) {
+    super();
+    this.title = text.text;
+    this.self = text;
+    this.self.label = "uiBalanceText";
+    this.initDefaultSizes();
   }
+
+  static async create(x: number, y: number, options: TextOptions) {
+    const { anchorPoint, title, textSize } = options;
+    const text = await createText(
+      x,
+      y,
+      anchorPoint || "topLeft",
+      title,
+      STYLE_KEY.normal,
+      textSize || 1.5,
+    );
+    return new UIBalanceText(text);
+  }
+
+  update(global: { inst: GlobalState }): void {
+    this.routine(global.inst);
+  }
+
+  private routine(global: GlobalState): void {
+    this.self.text = `${this.title} ${global.currentDollars}`;
+  }
+}
+
+export class UIWinText extends GameObject {
+  self: Text;
+  title: string;
+  timer = 0;
+  private constructor(text: Text) {
+    super();
+    this.title = text.text;
+    this.self = text;
+    this.self.label = "uiWinText";
+    this.initDefaultSizes();
+  }
+
+  static async create(x: number, y: number, options: TextOptions) {
+    const { anchorPoint, title, textSize } = options;
+    const text = await createText(
+      x,
+      y,
+      anchorPoint || "topLeft",
+      title,
+      STYLE_KEY.normal,
+      textSize || 1.5,
+    );
+    return new UIWinText(text);
+  }
+
+  update(global: { inst: GlobalState }): void {
+    this.routine(global.inst);
+  }
+
+  private routine(global: GlobalState): void {
+    this.timer++;
+    this.self.text = `${this.title} ${global.currentWinAmount}`;
+
+    if (global.currentWinAmount != global.currentWinAmountBuffer) {
+      if (this.timer % 6 === 0) {
+        global.currentWinAmount = approach(
+          global.currentWinAmount,
+          global.currentWinAmountBuffer,
+          1,
+        );
+      }
+    } else if (this.timer !== 0) {
+      this.timer = 0;
+    }
+  }
+}
+
+export class BackGroundInstance extends GameObject {
+  self: TilingSprite;
+  constructor(x: number, y: number, bg: TilingSprite) {
+    super();
+    this.self = bg;
+    this.self.position.set(x, y);
+  }
+
+  static async create(
+    x: number,
+    y: number,
+    options: { sprite: FromSprite; global: GlobalState },
+  ) {
+    const { sprite, global } = options;
+    const _sprite = await createTiledSprite(
+      sprite,
+      x,
+      y,
+      getAppScreenWidth(global.app),
+      getAppScreenHeight(global.app),
+      5,
+      false,
+    );
+    return new BackGroundInstance(x, y, _sprite);
+  }
+
+  update(): void {
+    this.scrollingBackgroundRoutine(-0.1, -0.1);
+  }
+  private scrollingBackgroundRoutine(hsp: number, vsp: number) {
+    this.self.tilePosition.x += hsp;
+    this.self.tilePosition.y += vsp;
+  }
+}
+export class ReelInstance extends GameObject {
+  declare self: Sprite;
+  declare symbols: Sprite[];
+  declare symbolIds: FromSprite[];
+  container: Container = new Container();
+  constructor(reel: Sprite, symbolIds: FromSprite[], global: GlobalState) {
+    super();
+    // reel
+    this.symbolIds = symbolIds;
+    this.self = reel;
+    this.self.label = "reel";
+    this.container.label = "reelContainer";
+    this.container.position.set(
+      canvasCenterX(global.app),
+      canvasCenterY(global.app),
+    );
+    this.container.addChild(this.self);
+    // symbols array
+    this.symbolIds.forEach(async (symbol, index) => {
+      const symbolSprite = await createSprite(
+        0,
+        0,
+        "topLeft",
+        { w: 1, h: 1 },
+        symbol,
+      );
+      symbolSprite.anchor.set(0.5, 0);
+      symbolSprite.position.set(reel.width / 2, index * symbolSprite.height);
+      symbolSprite.label = `${symbol}_${index}`;
+      this.self.addChild(symbolSprite);
+      this.symbols.push(symbolSprite);
+    });
+
+    this.initDefaultSizes();
+  }
+  static async create(
+    x: number = 0,
+    y: number = 0,
+    options: {
+      anchorPoint: AnchorPoint;
+      size: Size;
+      reelSprite: FromSprite;
+      symbolIds: FromSprite[];
+      global: GlobalState;
+    },
+  ) {
+    const { anchorPoint, size, reelSprite, symbolIds, global } = options;
+    const reel = await createSprite(x, y, anchorPoint, size, reelSprite);
+    return new ReelInstance(reel, symbolIds, global);
+  }
+  update(global: { inst: GlobalState }): void {
+    this.reelRoutine(global);
+  }
+
+  reelRoutine(global: { inst: GlobalState }): void {
+    if (!global.inst.gameCanRun) return;
+  }
+}
+
+export async function instanceCreate<
+  C extends { create: (...args: any[]) => Promise<any> },
+>(
+  x: number,
+  y: number,
+  cls: C,
+  options: Parameters<C["create"]>[2],
+): Promise<Awaited<ReturnType<C["create"]>>> {
+  return cls.create(x, y, options);
 }

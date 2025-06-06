@@ -1,4 +1,11 @@
-import { Sprite, Assets, TilingSprite, Text } from "pixi.js";
+import {
+  Sprite,
+  Assets,
+  TilingSprite,
+  Text,
+  Application,
+  Renderer,
+} from "pixi.js";
 import { SoundLibrary } from "./soundLibrary";
 import { Howl } from "howler";
 import {
@@ -39,6 +46,22 @@ export function setAnchorPoint(
   }
 }
 
+// --- GLOBAL ---
+
+export function getAppScreenWidth(app: Application) {
+  return app?.screen ? app.screen.width : 0;
+}
+export function getAppScreenHeight(app: Application) {
+  return app?.screen ? app.screen.height : 0;
+}
+
+export function canvasCenterX(app: Application<Renderer>) {
+  return app?.canvas ? app.canvas.width / 2 : 0;
+}
+export function canvasCenterY(app: Application<Renderer>) {
+  return app?.canvas ? app.canvas.height / 2 : 0;
+}
+
 // --- SOUND ---
 export function playSound(
   src: SoundLibrary,
@@ -56,6 +79,14 @@ export function playSound(
   return sound;
 }
 
+export function initSound(src: SoundLibrary, vol = 0.7, loop = false) {
+  return new Howl({
+    src: [src],
+    loop,
+    volume: vol,
+  });
+}
+
 export async function createSprite(
   x: number,
   y: number,
@@ -63,7 +94,7 @@ export async function createSprite(
   size: Size = { w: 1, h: 1 },
   spriteName: FromSprite,
 ): Promise<Sprite> {
-  const texture = await Assets.load("/assets/" + spriteName);
+  const texture = await Assets.load("/assets/" + spriteName + ".png");
   texture.source.scaleMode = "nearest";
   const sprite = Sprite.from(texture);
   sprite.position.set(x, y);
@@ -99,7 +130,7 @@ export async function createText(
   return textData;
 }
 
-export async function createTilingSprite(
+export async function createTiledSprite(
   image: string,
   x: number,
   y: number,
@@ -108,7 +139,7 @@ export async function createTilingSprite(
   textureSize = 1,
   interpolation = false,
 ): Promise<TilingSprite> {
-  const texture = await Assets.load("/public/assets/" + image);
+  const texture = await Assets.load("/public/assets/" + image + ".png");
   const tile = new TilingSprite({ texture });
   tile.position.set(x, y);
   tile.tileScale.set(textureSize, textureSize);
@@ -124,4 +155,8 @@ export function approach(target: number, value: number, increment: number) {
   if (target < value) return target + increment;
   if (target > value) return target - increment;
   return target;
+}
+
+export function choose<T>(...args: T[]): T {
+  return args[Math.floor(Math.random() * args.length)];
 }
