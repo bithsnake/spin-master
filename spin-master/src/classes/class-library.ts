@@ -33,6 +33,10 @@ import {
 import { sfxPoint } from "../utilities/soundLibrary";
 import { STYLE_KEY } from "../utilities/style-library";
 import { playButtonAtlas, pointerAtlasHand } from "../utilities/atlas-library";
+import {
+  GAME_CONTAINER,
+  REEL_CONTAINER,
+} from "../utilities/container-name-library";
 
 // const minute = 60 * 60;
 
@@ -47,7 +51,7 @@ export class GlobalState implements IUpdatable {
   time = 0;
   declare reel: ReelInstance;
   elapsedTime = 0;
-  dollarsMax = 100;
+  dollarsMax = 3;
   currentDollars = this.dollarsMax;
   currentWinAmount = 0;
   currentWinAmountBuffer = 0;
@@ -163,7 +167,7 @@ export abstract class UIText extends GameObject {
     this.initDefaultSizes();
     this.value = value;
     global.app.stage.children.forEach((container) => {
-      if (container.label === "gameContainer") {
+      if (container.label === GAME_CONTAINER) {
         global.textInst.push(this);
         container.addChild(this.self);
       }
@@ -597,7 +601,7 @@ export class ReelInstance extends GameObject {
     this.symbolIds = symbolIds;
     this.self = reel;
     this.self.label = "reel";
-    this.container.label = "reelContainer";
+    this.container.label = REEL_CONTAINER;
     this.container.position.set(
       canvasCenterX(global.app),
       canvasCenterY(global.app),
@@ -608,7 +612,7 @@ export class ReelInstance extends GameObject {
       const symbolSprite = await createSprite(
         0,
         0,
-        "topLeft",
+        "topCenter",
         { w: 1, h: 1 },
         symbol,
       );

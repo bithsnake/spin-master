@@ -31,6 +31,8 @@ export function setAnchorPoint(
       return { x: 0, y: 0 };
     case "topRight":
       return { x: width, y: 0 };
+    case "topCenter":
+      return { x: width / 2, y: 0 };
     case "bottomLeft":
       return { x: 0, y: height };
     case "bottomRight":
@@ -101,9 +103,9 @@ export async function createSprite(
   const texture = await Assets.load("/assets/" + spriteName + ".png");
   texture.source.scaleMode = "nearest";
   const sprite = Sprite.from(texture);
-  sprite.position.set(x, y);
   const _anchorPoint = setAnchorPoint(anchorPoint, sprite.width, sprite.height);
   sprite.anchor.set(_anchorPoint.x, _anchorPoint.y);
+  sprite.position.set(x, y);
   sprite.scale.set(1, 1);
   sprite.position.set(size.w, size.h);
   return sprite;

@@ -83,6 +83,7 @@ export type AlignType = "left" | "center" | "right";
 export type AnchorPoint =
   | "topLeft"
   | "topRight"
+  | "topCenter"
   | "bottomLeft"
   | "bottomRight"
   | "center"

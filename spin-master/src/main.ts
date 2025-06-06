@@ -28,6 +28,12 @@ import {
 } from "./utilities/atlas-library";
 import { playButtonAction } from "./classes/button-class-actions";
 import { track0, track2 } from "./utilities/soundLibrary";
+import {
+  BG_CONTAINER,
+  GAME_CONTAINER,
+  INSTANCE_CONTAINER,
+  UI_CONTAINER,
+} from "./utilities/container-name-library";
 
 (async () => {
   await Assets.init();
@@ -107,10 +113,10 @@ import { track0, track2 } from "./utilities/soundLibrary";
 
   const reel = await instanceCreate(
     canvasCenter.x,
-    canvasCenter.y,
+    canvasCenter.y - 64,
     ReelInstance,
     {
-      anchorPoint: "center",
+      anchorPoint: "topCenter",
       size: { w: 1, h: 1 },
       reelSprite: REEL,
       symbolIds: SYMBOLS_LIST,
@@ -132,16 +138,17 @@ import { track0, track2 } from "./utilities/soundLibrary";
   );
 
   const bgContainer = new Container();
-  bgContainer.label = "bgContainer";
+  bgContainer.label = BG_CONTAINER;
   bgContainer.addChild(BGTiled.self);
 
   const instanceContainer = new Container();
-  instanceContainer.label = "instanceContainer";
+  instanceContainer.label = INSTANCE_CONTAINER;
 
+  reel.self.position.set(canvasCenter.x - 70, canvasCenter.y - 140 * 3);
   instanceContainer.addChild(reel.self);
 
   const uiContainer = new Container();
-  uiContainer.label = "uiContainer";
+  uiContainer.label = UI_CONTAINER;
   uiContainer.addChild(GUIWinText.self);
   uiContainer.addChild(GUISSpinSecondsText.self);
   uiContainer.addChild(GUIBalanceText.self);
@@ -149,15 +156,15 @@ import { track0, track2 } from "./utilities/soundLibrary";
   uiContainer.addChild(pointer.self);
 
   const gameContainer = new Container();
-  gameContainer.label = "gameContainer";
+  gameContainer.label = GAME_CONTAINER;
   gameContainer.sortableChildren = true;
 
   gameContainer.addChild(bgContainer); // back layer
   gameContainer.addChild(instanceContainer); // middle layer
   gameContainer.addChild(uiContainer); // front layer
 
-  global.soundtrack = initSound(choose(track0, track2), 0.3, true);
-  global.soundtrack.play();
+  // global.soundtrack = initSound(choose(track0, track2), 0.3, true);
+  // global.soundtrack.play();
   global.reset();
 
   // array of anonymous function to run each instances own update function
@@ -166,9 +173,10 @@ import { track0, track2 } from "./utilities/soundLibrary";
   const updatables = [
     () => global.update(deltaTime),
     () => GUIWinText.update({ inst: global }),
-    () => GUISSpinSecondsText.update({ inst: global }),
+    // () => GUISSpinSecondsText.update({ inst: global }),
     () => GUIBalanceText.update({ inst: global }),
     () => GUIPlayButton.update({ inst: global }),
+    () => reel.update({ inst: global }),
     () => pointer.update(),
     () => BGTiled.update(),
   ];

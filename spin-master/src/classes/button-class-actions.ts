@@ -23,7 +23,7 @@ export const playButtonAction = (
   }
 
   global.spinTimer = global.spinTimerMax;
-  if (global.currentDollars > 1) {
+  if (global.currentDollars > 0) {
     playSound(sfxCashRegister, 1);
     global.currentDollars -= global.betAmount;
 
