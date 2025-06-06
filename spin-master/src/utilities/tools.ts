@@ -5,13 +5,17 @@ import {
   Text,
   Application,
   Renderer,
+  AnimatedSprite,
+  Spritesheet,
 } from "pixi.js";
 import { SoundLibrary } from "./soundLibrary";
 import { Howl } from "howler";
 import {
   AlignType,
   AnchorPoint,
+  AtlasData,
   FromSprite,
+  Point,
   Size,
   StyleType,
 } from "../types/types";
@@ -79,7 +83,7 @@ export function playSound(
   return sound;
 }
 
-export function initSound(src: SoundLibrary, vol = 0.7, loop = false) {
+export function initSound(src: SoundLibrary, vol = 0.7, loop = false): Howl {
   return new Howl({
     src: [src],
     loop,
@@ -105,6 +109,38 @@ export async function createSprite(
   return sprite;
 }
 
+export async function createAnimatedSprite(
+  atlasData: AtlasData,
+  x: number,
+  y: number,
+  anchorPoint: Point = { x: 0, y: 0 },
+  scale = 1,
+  animate = {
+    anim: "sit",
+    animate: true,
+    speed: 0.1,
+  },
+): Promise<AnimatedSprite> {
+  const texture = await Assets.load(atlasData.meta.image);
+  texture.source.scaleMode = "nearest";
+  const spriteSheet = new Spritesheet(texture, atlasData);
+  await spriteSheet.parse();
+  const anim = spriteSheet.animations[animate.anim];
+  const animatedSprite = new AnimatedSprite(anim);
+
+  if (anchorPoint) {
+    animatedSprite.anchor.set(anchorPoint.x, anchorPoint.y);
+  }
+  animatedSprite.position.set(x, y);
+  animatedSprite.scale.set(scale, scale);
+  if (animate.animate) {
+    animatedSprite.animationSpeed = animate.speed;
+    animatedSprite.play();
+  }
+  animatedSprite.label = atlasData.meta.name;
+  return animatedSprite;
+}
+
 export async function createText(
   x: number,
   y: number,
@@ -113,6 +149,7 @@ export async function createText(
   styleType: StyleType,
   size = 1,
   align: AlignType | null = null,
+  label: string = "newText",
 ): Promise<Text> {
   const style = STYLE[styleType](size);
   const font = await Assets.load("/fonts/Roboto_Condensed-Regular.ttf");
@@ -120,6 +157,7 @@ export async function createText(
   style.fontSize = style.fontSize * size;
   if (align) style.align = align;
   const textData = new Text({ text, style });
+  textData.label = label;
   const _anchorPoint = setAnchorPoint(
     anchorPoint,
     textData.width,

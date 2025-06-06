@@ -110,3 +110,5 @@ export type TextOptions = {
   title: string;
   textSize: number;
 };
+
+export type Direction = "up" | "down" | "left" | "right";
