@@ -1,32 +1,6 @@
 import { initDevtools } from "@pixi/devtools";
 import { Application, Assets, Container, Ticker } from "pixi.js";
-import {
-  BackGroundInstance,
-  ButtonInstance,
-  GlobalState,
-  instanceCreate,
-  PointerInstance,
-  ReelInstance,
-  UIBalanceText,
-  UISpinSecondsText,
-  UIWinText,
-} from "./classes/class-library";
-import {
-  canvasCenterX,
-  canvasCenterY,
-  choose,
-  initSound,
-} from "./utilities/tools";
-import { FromSprite } from "./types/types";
-
-import { REEL, TILE01 } from "./utilities/imageLibrary";
-import { SYMBOLS_LIST } from "./utilities/symbols-library";
-import {
-  playButtonAtlas,
-  POINTER_HAND_ANIMS,
-  pointerAtlasHand,
-} from "./utilities/atlas-library";
-import { playButtonAction } from "./classes/button-class-actions";
+import { GameObject, GlobalState } from "./classes/class-library";
 import { track0, track2 } from "./utilities/soundLibrary";
 import {
   BG_CONTAINER,
@@ -34,6 +8,11 @@ import {
   INSTANCE_CONTAINER,
   UI_CONTAINER,
 } from "./utilities/container-name-library";
+import {
+  createBackgroundInstances,
+  createGuiTextInstances,
+  createInteractiveInstances,
+} from "./utilities/instance-create-factory";
 
 (async () => {
   await Assets.init();
@@ -60,104 +39,43 @@ import {
   global.gameIsStarted = true;
   global.gameCanRun = true;
 
-  // --- CENTER ---
-  const canvasCenter = {
-    x: canvasCenterX(global.app),
-    y: canvasCenterY(global.app),
-  };
+  // --- instances ---
+  const guiInstArray = <GameObject[]>await createGuiTextInstances(global);
+  const instArray = <GameObject[]>await createInteractiveInstances(global);
+  const bgInstArray = <GameObject[]>await createBackgroundInstances(global);
 
-  const GUIWinText = await instanceCreate(canvasCenter.x - 512, 32, UIWinText, {
-    anchorPoint: "topLeft",
-    title: "Win: ",
-    textSize: 1.5,
+  // --- containers ---
+
+  // BG
+  const bgContainer = new Container({
+    label: BG_CONTAINER,
   });
-  const GUISSpinSecondsText = await instanceCreate(
-    canvasCenter.x - 512,
-    128,
-    UISpinSecondsText,
-    {
-      anchorPoint: "topLeft",
-      title: "Sec: ",
-      textSize: 1.5,
-    },
-  );
-
-  const GUIBalanceText = await instanceCreate(
-    canvasCenter.x + 112,
-    32,
-    UIBalanceText,
-    {
-      anchorPoint: "topLeft",
-      title: "Balance: ",
-      textSize: 1.5,
-    },
-  );
-
-  const GUIPlayButton = await instanceCreate(
-    canvasCenter.x,
-    canvasCenter.y + 334,
-    ButtonInstance,
-    {
-      atlasData: playButtonAtlas,
-      anchorPoint: { x: 0.5, y: 0.5 },
-      size: 1,
-      global: global,
-      action: playButtonAction,
-    },
-  );
-
-  const BGTiled = await instanceCreate(0, 0, BackGroundInstance, {
-    sprite: <FromSprite>TILE01,
-    global: global,
+  bgInstArray.forEach((inst) => {
+    bgContainer.addChild(inst.self);
   });
 
-  const reel = await instanceCreate(
-    canvasCenter.x,
-    canvasCenter.y - 64,
-    ReelInstance,
-    {
-      anchorPoint: "topCenter",
-      size: { w: 1, h: 1 },
-      reelSprite: REEL,
-      symbolIds: SYMBOLS_LIST,
-      global: global,
-    },
-  );
+  // INST
+  const instanceContainer = new Container({
+    label: INSTANCE_CONTAINER,
+  });
 
-  const pointer = await instanceCreate(
-    canvasCenter.x,
-    canvasCenter.y,
-    PointerInstance,
-    {
-      _pickerAtlas: pointerAtlasHand,
-      anim: POINTER_HAND_ANIMS.pick,
-      animate: false,
-      speed: 0.1,
-      anchorPoint: { x: 0.6, y: 0.4 },
-    },
-  );
+  instArray.forEach((inst) => {
+    instanceContainer.addChild(inst.self);
+  });
 
-  const bgContainer = new Container();
-  bgContainer.label = BG_CONTAINER;
-  bgContainer.addChild(BGTiled.self);
+  // GUI
+  const uiContainer = new Container({
+    label: UI_CONTAINER,
+  });
+  guiInstArray.forEach((inst) => {
+    console.log("inst: ", inst.self);
+    uiContainer.addChild(inst.self);
+  });
 
-  const instanceContainer = new Container();
-  instanceContainer.label = INSTANCE_CONTAINER;
-
-  reel.self.position.set(canvasCenter.x - 70, canvasCenter.y - 140 * 3);
-  instanceContainer.addChild(reel.self);
-
-  const uiContainer = new Container();
-  uiContainer.label = UI_CONTAINER;
-  uiContainer.addChild(GUIWinText.self);
-  uiContainer.addChild(GUISSpinSecondsText.self);
-  uiContainer.addChild(GUIBalanceText.self);
-  uiContainer.addChild(GUIPlayButton.self);
-  uiContainer.addChild(pointer.self);
-
-  const gameContainer = new Container();
-  gameContainer.label = GAME_CONTAINER;
-  gameContainer.sortableChildren = true;
+  const gameContainer = new Container({
+    label: GAME_CONTAINER,
+    sortableChildren: true,
+  });
 
   gameContainer.addChild(bgContainer); // back layer
   gameContainer.addChild(instanceContainer); // middle layer
@@ -172,13 +90,9 @@ import {
   let deltaTime = 0;
   const updatables = [
     () => global.update(deltaTime),
-    () => GUIWinText.update({ inst: global }),
-    // () => GUISSpinSecondsText.update({ inst: global }),
-    () => GUIBalanceText.update({ inst: global }),
-    () => GUIPlayButton.update({ inst: global }),
-    () => reel.update({ inst: global }),
-    () => pointer.update(),
-    () => BGTiled.update(),
+    () => instArray.forEach((inst) => inst.update({ inst: global })),
+    () => guiInstArray.forEach((inst) => inst.update({ inst: global })),
+    () => bgInstArray.forEach((inst) => inst.update({ inst: global })),
   ];
 
   global.app.stage.addChild(gameContainer);

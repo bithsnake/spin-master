@@ -38,8 +38,6 @@ import {
   REEL_CONTAINER,
 } from "../utilities/container-name-library";
 
-// const minute = 60 * 60;
-
 export class GlobalState implements IUpdatable {
   app!: Application;
   spinTimerMax = 2;
@@ -131,6 +129,7 @@ export class GlobalState implements IUpdatable {
   }
 }
 
+// --- ABSTRACT CLASSES ---
 export abstract class GameObject implements IRenderable, IUpdatable {
   declare self:
     | Sprite
@@ -181,340 +180,7 @@ export abstract class UIText extends GameObject {
   }
 }
 
-export class ButtonInstance extends GameObject {
-  self: Sprite | AnimatedSprite;
-  action: (
-    global: GlobalState,
-    selfInst: ButtonInstance,
-    event: FederatedPointerEvent,
-  ) => void;
-
-  constructor(
-    button: Sprite | AnimatedSprite,
-    global: GlobalState,
-    action: (
-      global: GlobalState,
-      selfInst: ButtonInstance,
-      event: FederatedPointerEvent,
-    ) => void,
-  ) {
-    super();
-    this.self = button;
-    this.self.interactive = true;
-    this.action = action;
-
-    this.self.on("pointerdown", (_event: FederatedPointerEvent) => {
-      this.action(global, this, _event);
-    });
-    this.initDefaultSizes();
-  }
-
-  static async create(
-    x: number = 0,
-    y: number = 0,
-    options: {
-      atlasData: AtlasData;
-      anchorPoint: Point;
-      size: number;
-      global: GlobalState;
-      action: (
-        global: GlobalState,
-        selfInst: ButtonInstance,
-        event: FederatedPointerEvent,
-      ) => void;
-    },
-  ) {
-    const { atlasData, anchorPoint, size, global, action } = options;
-
-    const button = await createAnimatedSprite(
-      atlasData || playButtonAtlas,
-      x,
-      y,
-      anchorPoint,
-      size,
-      {
-        anim: "normal",
-        animate: false,
-        speed: 0,
-      },
-    );
-    return new ButtonInstance(button, global, action);
-  }
-  update(global: { inst: GlobalState }): void {
-    this.stepEvent(global.inst);
-  }
-
-  protected stepEvent(global: GlobalState): void {
-    if (!global.gameCanRun) return;
-  }
-}
-
-export class UIScrollingText extends UIText {
-  declare self: Text;
-  value: string;
-  timer = 0;
-  dir: Direction = "up";
-  private constructor(
-    text: Text,
-    dir: Direction,
-    value: string,
-    global: GlobalState,
-  ) {
-    super(text, value, global);
-    this.initDefaultSizes();
-    this.dir = dir;
-    this.value = value;
-  }
-
-  static async create(
-    x: number,
-    y: number,
-    options: {
-      label: string;
-      anchorPoint: AnchorPoint;
-      value: string;
-      global: GlobalState;
-      dir: Direction;
-    },
-  ) {
-    const { label, anchorPoint, dir, value, global } = options;
-    const text = await createText(
-      x,
-      y,
-      anchorPoint,
-      value,
-      STYLE_KEY.normal,
-      2,
-      null,
-      label,
-    );
-    text.label = label;
-    return new UIScrollingText(text, dir, value, global);
-  }
-
-  update(global: GlobalState): void {
-    this.stepEvent(global);
-  }
-
-  protected stepEvent(global: GlobalState): void {
-    this.timer++;
-    this.self.text = `${this.value}`;
-
-    if (this.timer % 6 === 0) {
-      this.self.alpha = approach(this.self.alpha, 0, 0.05);
-
-      if (this.dir === "up") {
-        this.self.position.y -= 4;
-      } else if (this.dir === "down") {
-        this.self.position.y += 4;
-      }
-      this.self.position.x += 0.4;
-
-      // to compesate the x position to keep it in its x positiion while the scaling down that happens, fix later
-      this.self.scale.set(this.self.scale.x - 0.01, this.self.scale.y - 0.01);
-    }
-    if (this.self.alpha <= 0) {
-      this.self.alpha = 0;
-      this.self.visible = false;
-      this.self.destroy();
-      this.destroyInstRef(global);
-    }
-  }
-}
-export class UICurrentWinText extends UIText {
-  self: Text;
-  value: string;
-  timer = 0;
-  private constructor(text: Text, value: string, global: GlobalState) {
-    super(text, value, global);
-    this.self = text;
-    this.initDefaultSizes();
-    playSound(sfxPoint, 1);
-    this.value = value;
-    global.currentWinAmountBuffer = +this.value;
-  }
-
-  static async create(
-    x: number,
-    y: number,
-    anchorPoint: AnchorPoint,
-    win: string,
-    global: GlobalState,
-  ) {
-    const text = await createText(x, y, anchorPoint, "", STYLE_KEY.normal, 2);
-    return new UICurrentWinText(text, win, global);
-  }
-
-  update(global: GlobalState): void {
-    this.stepEvent(global);
-  }
-
-  protected stepEvent(global: GlobalState): void {
-    this.timer++;
-    this.self.text = `+${this.value}`;
-
-    if (this.timer % 6 === 0) {
-      this.self.alpha = approach(this.self.alpha, 0, 0.05);
-      this.self.position.y -= 4;
-      this.self.scale.set(this.self.scale.x - 0.01, this.self.scale.y - 0.01);
-    }
-    if (this.self.alpha <= 0) {
-      this.self.alpha = 0;
-      this.self.visible = false;
-      this.self.destroy();
-      // remove reference of text instance in the global state object
-      this.destroyInstRef(global);
-    }
-  }
-}
-
-export class UISpinSecondsText extends GameObject {
-  self: Text;
-  title: string;
-  private constructor(text: Text) {
-    super();
-    this.title = text.text;
-    this.self = text;
-    this.self.label = "uiSpinSEcondsText";
-    this.initDefaultSizes();
-  }
-
-  static async create(x: number, y: number, options: TextOptions) {
-    const { anchorPoint, title, textSize } = options;
-    const text = await createText(
-      x,
-      y,
-      anchorPoint || "topLeft",
-      title,
-      STYLE_KEY.normal,
-      textSize || 1.5,
-    );
-    return new UISpinSecondsText(text);
-  }
-
-  update(global: { inst: GlobalState }): void {
-    this.stepEvent(global.inst);
-  }
-
-  protected stepEvent(global: GlobalState): void {
-    this.self.text = `${this.title} ${global.spinTimer}`;
-  }
-}
-export class UIBalanceText extends GameObject {
-  self: Text;
-  title: string;
-  private constructor(text: Text) {
-    super();
-    this.title = text.text;
-    this.self = text;
-    this.self.label = "uiBalanceText";
-    this.initDefaultSizes();
-  }
-
-  static async create(x: number, y: number, options: TextOptions) {
-    const { anchorPoint, title, textSize } = options;
-    const text = await createText(
-      x,
-      y,
-      anchorPoint || "topLeft",
-      title,
-      STYLE_KEY.normal,
-      textSize || 1.5,
-    );
-    return new UIBalanceText(text);
-  }
-
-  update(global: { inst: GlobalState }): void {
-    this.stepEvent(global.inst);
-  }
-
-  protected stepEvent(global: GlobalState): void {
-    this.self.text = `${this.title} ${global.currentDollars}`;
-  }
-}
-
-export class UIWinText extends GameObject {
-  self: Text;
-  title: string;
-  timer = 0;
-  private constructor(text: Text) {
-    super();
-    this.title = text.text;
-    this.self = text;
-    this.self.label = "uiWinText";
-    this.initDefaultSizes();
-  }
-
-  static async create(x: number, y: number, options: TextOptions) {
-    const { anchorPoint, title, textSize } = options;
-    const text = await createText(
-      x,
-      y,
-      anchorPoint || "topLeft",
-      title,
-      STYLE_KEY.normal,
-      textSize || 1.5,
-    );
-    return new UIWinText(text);
-  }
-
-  update(global: { inst: GlobalState }): void {
-    this.stepEvent(global.inst);
-  }
-
-  protected stepEvent(global: GlobalState): void {
-    this.timer++;
-    this.self.text = `${this.title} ${global.currentWinAmount}`;
-
-    if (global.currentWinAmount != global.currentWinAmountBuffer) {
-      if (this.timer % 6 === 0) {
-        global.currentWinAmount = approach(
-          global.currentWinAmount,
-          global.currentWinAmountBuffer,
-          1,
-        );
-      }
-    } else if (this.timer !== 0) {
-      this.timer = 0;
-    }
-  }
-}
-
-export class BackGroundInstance extends GameObject {
-  self: TilingSprite;
-  constructor(x: number, y: number, bg: TilingSprite) {
-    super();
-    this.self = bg;
-    this.self.position.set(x, y);
-  }
-
-  static async create(
-    x: number,
-    y: number,
-    options: { sprite: FromSprite; global: GlobalState },
-  ) {
-    const { sprite, global } = options;
-    const _sprite = await createTiledSprite(
-      sprite,
-      x,
-      y,
-      getAppScreenWidth(global.app),
-      getAppScreenHeight(global.app),
-      5,
-      false,
-    );
-    return new BackGroundInstance(x, y, _sprite);
-  }
-
-  update(): void {
-    this.stepEvent(-0.1, -0.1);
-  }
-  protected stepEvent(hsp: number, vsp: number) {
-    this.self.tilePosition.x += hsp;
-    this.self.tilePosition.y += vsp;
-  }
-}
-
+// --- INTERACTIVE CLASSES ---
 export class PointerInstance extends GameObject {
   self: AnimatedSprite;
   mousePosition: Point = { x: 0, y: 0 };
@@ -647,6 +313,343 @@ export class ReelInstance extends GameObject {
 
   protected stepEvent(global: { inst: GlobalState }): void {
     if (!global.inst.gameCanRun) return;
+  }
+}
+
+export class ButtonInstance extends GameObject {
+  self: Sprite | AnimatedSprite;
+  action: (
+    global: GlobalState,
+    selfInst: ButtonInstance,
+    event: FederatedPointerEvent,
+  ) => void;
+
+  constructor(
+    button: Sprite | AnimatedSprite,
+    global: GlobalState,
+    action: (
+      global: GlobalState,
+      selfInst: ButtonInstance,
+      event: FederatedPointerEvent,
+    ) => void,
+  ) {
+    super();
+    this.self = button;
+    this.self.interactive = true;
+    this.action = action;
+
+    this.self.on("pointerdown", (_event: FederatedPointerEvent) => {
+      this.action(global, this, _event);
+    });
+    this.initDefaultSizes();
+  }
+
+  static async create(
+    x: number,
+    y: number,
+    options: {
+      atlasData: AtlasData;
+      anchorPoint: Point;
+      size: number;
+      global: GlobalState;
+      action: (
+        global: GlobalState,
+        selfInst: ButtonInstance,
+        event: FederatedPointerEvent,
+      ) => void;
+    },
+  ) {
+    const { atlasData, anchorPoint, size, global, action } = options;
+
+    const button = await createAnimatedSprite(
+      atlasData || playButtonAtlas,
+      x,
+      y,
+      anchorPoint,
+      size,
+      {
+        anim: "normal",
+        animate: false,
+        speed: 0,
+      },
+    );
+    return new ButtonInstance(button, global, action);
+  }
+  update(global: { inst: GlobalState }): void {
+    this.stepEvent(global.inst);
+  }
+
+  protected stepEvent(global: GlobalState): void {
+    if (!global.gameCanRun) return;
+  }
+}
+
+// --- UI CLASSES ---
+export class UIScrollingText extends UIText {
+  declare self: Text;
+  value: string;
+  timer = 0;
+  dir: Direction = "up";
+  private constructor(
+    text: Text,
+    dir: Direction,
+    value: string,
+    global: GlobalState,
+  ) {
+    super(text, value, global);
+    this.initDefaultSizes();
+    this.dir = dir;
+    this.value = value;
+  }
+
+  static async create(
+    x: number,
+    y: number,
+    options: {
+      label: string;
+      anchorPoint: AnchorPoint;
+      value: string;
+      global: GlobalState;
+      dir: Direction;
+    },
+  ) {
+    const { label, anchorPoint, dir, value, global } = options;
+    const text = await createText(
+      x,
+      y,
+      anchorPoint,
+      value,
+      STYLE_KEY.normal,
+      2,
+      null,
+      label,
+    );
+    text.label = label;
+    return new UIScrollingText(text, dir, value, global);
+  }
+
+  update(global: GlobalState): void {
+    this.stepEvent(global);
+  }
+
+  protected stepEvent(global: GlobalState): void {
+    this.timer++;
+    this.self.text = `${this.value}`;
+
+    if (this.timer % 6 === 0) {
+      this.self.alpha = approach(this.self.alpha, 0, 0.05);
+
+      if (this.dir === "up") {
+        this.self.position.y -= 4;
+      } else if (this.dir === "down") {
+        this.self.position.y += 4;
+      }
+      this.self.position.x += 0.4;
+
+      // to compesate the x position to keep it in its x positiion while the scaling down that happens, fix later
+      this.self.scale.set(this.self.scale.x - 0.01, this.self.scale.y - 0.01);
+    }
+    if (this.self.alpha <= 0) {
+      this.self.alpha = 0;
+      this.self.visible = false;
+      this.self.destroy();
+      this.destroyInstRef(global);
+    }
+  }
+}
+
+export class UICurrentWinText extends UIText {
+  self: Text;
+  value: string;
+  timer = 0;
+  private constructor(text: Text, value: string, global: GlobalState) {
+    super(text, value, global);
+    this.self = text;
+    this.initDefaultSizes();
+    playSound(sfxPoint, 1);
+    this.value = value;
+    global.currentWinAmountBuffer = +this.value;
+  }
+
+  static async create(
+    x: number,
+    y: number,
+    anchorPoint: AnchorPoint,
+    win: string,
+    global: GlobalState,
+  ) {
+    const text = await createText(x, y, anchorPoint, "", STYLE_KEY.normal, 2);
+    return new UICurrentWinText(text, win, global);
+  }
+
+  update(global: GlobalState): void {
+    this.stepEvent(global);
+  }
+
+  protected stepEvent(global: GlobalState): void {
+    this.timer++;
+    this.self.text = `+${this.value}`;
+
+    if (this.timer % 6 === 0) {
+      this.self.alpha = approach(this.self.alpha, 0, 0.05);
+      this.self.position.y -= 4;
+      this.self.scale.set(this.self.scale.x - 0.01, this.self.scale.y - 0.01);
+    }
+    if (this.self.alpha <= 0) {
+      this.self.alpha = 0;
+      this.self.visible = false;
+      this.self.destroy();
+      // remove reference of text instance in the global state object
+      this.destroyInstRef(global);
+    }
+  }
+}
+
+export class UISpinSecondsText extends GameObject {
+  self: Text;
+  title: string;
+  private constructor(text: Text) {
+    super();
+    this.title = text.text;
+    this.self = text;
+    this.self.label = "uiSpinSEcondsText";
+    this.initDefaultSizes();
+  }
+
+  static async create(x: number, y: number, options: TextOptions) {
+    const { anchorPoint, title, textSize } = options;
+    const text = await createText(
+      x,
+      y,
+      anchorPoint || "topLeft",
+      title,
+      STYLE_KEY.normal,
+      textSize || 1.5,
+    );
+    return new UISpinSecondsText(text);
+  }
+
+  update(global: { inst: GlobalState }): void {
+    this.stepEvent(global.inst);
+  }
+
+  protected stepEvent(global: GlobalState): void {
+    this.self.text = `${this.title} ${global.spinTimer}`;
+  }
+}
+
+export class UIBalanceText extends GameObject {
+  self: Text;
+  title: string;
+  private constructor(text: Text) {
+    super();
+    this.title = text.text;
+    this.self = text;
+    this.self.label = "uiBalanceText";
+    this.initDefaultSizes();
+  }
+
+  static async create(x: number, y: number, options: TextOptions) {
+    const { anchorPoint, title, textSize } = options;
+    const text = await createText(
+      x,
+      y,
+      anchorPoint || "topLeft",
+      title,
+      STYLE_KEY.normal,
+      textSize || 1.5,
+    );
+    return new UIBalanceText(text);
+  }
+
+  update(global: { inst: GlobalState }): void {
+    this.stepEvent(global.inst);
+  }
+
+  protected stepEvent(global: GlobalState): void {
+    this.self.text = `${this.title} ${global.currentDollars}`;
+  }
+}
+
+export class UIWinText extends GameObject {
+  self: Text;
+  title: string;
+  timer = 0;
+  private constructor(text: Text) {
+    super();
+    this.title = text.text;
+    this.self = text;
+    this.self.label = "uiWinText";
+    this.initDefaultSizes();
+  }
+
+  static async create(x: number, y: number, options: TextOptions) {
+    const { anchorPoint, title, textSize } = options;
+    const text = await createText(
+      x,
+      y,
+      anchorPoint || "topLeft",
+      title,
+      STYLE_KEY.normal,
+      textSize || 1.5,
+    );
+    return new UIWinText(text);
+  }
+
+  update(global: { inst: GlobalState }): void {
+    this.stepEvent(global.inst);
+  }
+
+  protected stepEvent(global: GlobalState): void {
+    this.timer++;
+    this.self.text = `${this.title} ${global.currentWinAmount}`;
+
+    if (global.currentWinAmount != global.currentWinAmountBuffer) {
+      if (this.timer % 6 === 0) {
+        global.currentWinAmount = approach(
+          global.currentWinAmount,
+          global.currentWinAmountBuffer,
+          1,
+        );
+      }
+    } else if (this.timer !== 0) {
+      this.timer = 0;
+    }
+  }
+}
+
+export class BackGroundInstance extends GameObject {
+  self: TilingSprite;
+  constructor(x: number, y: number, bg: TilingSprite) {
+    super();
+    this.self = bg;
+    this.self.position.set(x, y);
+  }
+
+  static async create(
+    x: number,
+    y: number,
+    options: { sprite: FromSprite; global: GlobalState },
+  ) {
+    const { sprite, global } = options;
+    const _sprite = await createTiledSprite(
+      sprite,
+      x,
+      y,
+      getAppScreenWidth(global.app),
+      getAppScreenHeight(global.app),
+      5,
+      false,
+    );
+    return new BackGroundInstance(x, y, _sprite);
+  }
+
+  update(): void {
+    this.stepEvent(-0.1, -0.1);
+  }
+  protected stepEvent(hsp: number, vsp: number) {
+    this.self.tilePosition.x += hsp;
+    this.self.tilePosition.y += vsp;
   }
 }
 
