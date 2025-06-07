@@ -21,32 +21,26 @@ import {
 } from "../types/types";
 import { STYLE } from "./style-library";
 
-export function setAnchorPoint(
-  anchorPoint: AnchorPoint,
-  width: number,
-  height: number,
-) {
+export function setAnchorPoint(anchorPoint: AnchorPoint) {
   switch (anchorPoint) {
     case "topLeft":
       return { x: 0, y: 0 };
     case "topRight":
-      return { x: width, y: 0 };
+      return { x: 1, y: 0 };
     case "topCenter":
-      return { x: width / 2, y: 0 };
+      return { x: 0.5, y: 0 };
     case "bottomLeft":
-      return { x: 0, y: height };
+      return { x: 0.5, y: 0 };
     case "bottomRight":
-      return { x: width, y: height };
+      return { x: 0.5, y: 1 };
+    case "bottomCenter":
+      return { x: 0.5, y: 1 };
     case "center":
-      return { x: width / 2, y: height / 2 };
-    case "centerTop":
-      return { x: width / 2, y: 0 };
-    case "centerBottom":
-      return { x: width / 2, y: height };
+      return { x: 0.5, y: 0.5 };
     case "centerLeft":
-      return { x: 0, y: height / 2 };
+      return { x: 0, y: 0.5 };
     case "centerRight":
-      return { x: width, y: height / 2 };
+      return { x: 1, y: 0.5 };
     default:
       return { x: 0, y: 0 };
   }
@@ -103,11 +97,10 @@ export async function createSprite(
   const texture = await Assets.load("/assets/" + spriteName + ".png");
   texture.source.scaleMode = "nearest";
   const sprite = Sprite.from(texture);
-  const _anchorPoint = setAnchorPoint(anchorPoint, sprite.width, sprite.height);
+  const _anchorPoint = setAnchorPoint(anchorPoint);
   sprite.anchor.set(_anchorPoint.x, _anchorPoint.y);
   sprite.position.set(x, y);
-  sprite.scale.set(1, 1);
-  sprite.position.set(size.w, size.h);
+  sprite.scale.set(size.w, size.h);
   return sprite;
 }
 
@@ -160,11 +153,7 @@ export async function createText(
   if (align) style.align = align;
   const textData = new Text({ text, style });
   textData.label = label;
-  const _anchorPoint = setAnchorPoint(
-    anchorPoint,
-    textData.width,
-    textData.height,
-  );
+  const _anchorPoint = setAnchorPoint(anchorPoint);
   textData.position.set(x, y);
   textData.anchor.set(_anchorPoint.x, _anchorPoint.y);
   return textData;

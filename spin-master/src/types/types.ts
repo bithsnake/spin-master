@@ -86,11 +86,10 @@ export type AnchorPoint =
   | "topCenter"
   | "bottomLeft"
   | "bottomRight"
-  | "center"
-  | "centerTop"
-  | "centerBottom"
+  | "bottomCenter"
   | "centerLeft"
-  | "centerRight";
+  | "centerRight"
+  | "center";
 
 export interface SpineAssetPath {
   atlas: string;

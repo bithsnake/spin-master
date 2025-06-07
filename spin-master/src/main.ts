@@ -1,7 +1,8 @@
 import { initDevtools } from "@pixi/devtools";
-import { Application, Assets, Container, Ticker } from "pixi.js";
+import { Application, Container, Ticker } from "pixi.js";
 import { GameObject, GlobalState } from "./classes/class-library";
-import { track0, track2 } from "./utilities/soundLibrary";
+
+// import { track0, track2 } from "./utilities/soundLibrary";
 import {
   BG_CONTAINER,
   GAME_CONTAINER,
@@ -15,7 +16,7 @@ import {
 } from "./utilities/instance-create-factory";
 
 (async () => {
-  await Assets.init();
+  // await Assets.init();
 
   // Create a new application
   const app = new Application();
@@ -105,6 +106,4 @@ import {
     deltaTime = time.deltaTime;
     updatables.forEach((fn) => fn());
   });
-
-  // GLOBAL LISTENERS
 })();

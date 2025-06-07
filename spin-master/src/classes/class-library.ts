@@ -293,8 +293,8 @@ export class ReelInstance extends GameObject {
   }
 
   static async create(
-    x: number = 0,
-    y: number = 0,
+    x: number,
+    y: number,
     options: {
       anchorPoint: AnchorPoint;
       size: Size;

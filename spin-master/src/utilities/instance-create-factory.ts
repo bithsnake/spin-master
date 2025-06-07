@@ -89,7 +89,7 @@ export async function createInteractiveInstances(global: GlobalState) {
 
   const reelInstance = await instanceCreate(
     canvasCenter.x,
-    canvasCenter.y + 200,
+    canvasCenter.y - 320,
     ReelInstance,
     {
       anchorPoint: "topCenter",
@@ -98,11 +98,6 @@ export async function createInteractiveInstances(global: GlobalState) {
       symbolIds: SYMBOLS_LIST,
       global: global,
     },
-  );
-
-  reelInstance.self.position.set(
-    canvasCenter.x - 70,
-    canvasCenter.y - 140 * 2.5,
   );
 
   const playButtonInstance = await instanceCreate(
