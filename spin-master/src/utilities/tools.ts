@@ -30,9 +30,9 @@ export function setAnchorPoint(anchorPoint: AnchorPoint) {
     case "topCenter":
       return { x: 0.5, y: 0 };
     case "bottomLeft":
-      return { x: 0.5, y: 0 };
+      return { x: 0, y: 1 };
     case "bottomRight":
-      return { x: 0.5, y: 1 };
+      return { x: 1, y: 1 };
     case "bottomCenter":
       return { x: 0.5, y: 1 };
     case "center":
@@ -53,6 +53,12 @@ export function getAppScreenWidth(app: Application) {
 }
 export function getAppScreenHeight(app: Application) {
   return app?.screen ? app.screen.height : 0;
+}
+export function getAppStageWidth(app: Application) {
+  return app?.stage ? app.stage.width : 0;
+}
+export function getAppStageHeight(app: Application) {
+  return app?.stage ? app.stage.height : 0;
 }
 
 export function canvasCenterX(app: Application<Renderer>) {
@@ -181,11 +187,25 @@ export async function createTiledSprite(
 }
 
 export function approach(target: number, value: number, increment: number) {
-  if (target < value) return target + increment;
-  if (target > value) return target - increment;
+  if (target < value) {
+    target += increment;
+    if (target > value) return value;
+  } else {
+    target -= increment;
+    if (target < value) return value;
+  }
   return target;
+
+  // if (target < value) return target + increment;
+  // if (target > value) return target - increment;
+  // return target;
 }
 
 export function choose<T>(...args: T[]): T {
   return args[Math.floor(Math.random() * args.length)];
+}
+
+// Basic lerp funtion.
+export function lerp(a1: number, a2: number, t: number) {
+  return a1 * (1 - t) + a2 * t;
 }
