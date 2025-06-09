@@ -22,6 +22,7 @@ import {
 import {
   approach,
   canvasCenterY,
+  choose,
   createAnimatedSprite,
   createSprite,
   createText,
@@ -30,6 +31,7 @@ import {
   getAppScreenWidth,
   getAppStageHeight,
   getAppStageWidth,
+  initSound,
   playSound,
   pointMeeting,
 } from "../utilities/tools";
@@ -41,7 +43,12 @@ import {
   SLOT_CONTAINER,
   SYMBOL_CONTAINER,
 } from "../utilities/container-name-library";
-import { highScoreFanfare, sfxPoint } from "../utilities/soundLibrary";
+import {
+  highScoreFanfare,
+  sfxPoint,
+  spinmaster,
+  track2,
+} from "../utilities/soundLibrary";
 import {
   assetPath,
   SYM01,
@@ -55,9 +62,10 @@ import {
 export class GlobalState implements IUpdatable {
   app!: Application;
   canPress = false;
-  spinTimerMax = 2;
-  spinTimer = 0;
+  spinTimerSecondsMax = 2;
+  spinTimerSeconds = 0;
   isSpinning = false;
+  gameRoundEnded = false;
   intervalMax = 5;
   interval = this.intervalMax;
   count = 0;
@@ -94,7 +102,7 @@ export class GlobalState implements IUpdatable {
   }
 
   reset(): void {
-    this.spinTimer = 0;
+    this.spinTimerSeconds = 0;
     this.interval = this.intervalMax;
     this.count = 0;
     this.time = 0;
@@ -112,8 +120,6 @@ export class GlobalState implements IUpdatable {
     } else {
       this.gameCanRun = true;
     }
-
-    // if game is not started, do not run code
     if (!this.gameIsStarted) return;
 
     if (this.textInst.length > 0) {
@@ -123,19 +129,15 @@ export class GlobalState implements IUpdatable {
     }
 
     // elapsed time is incremented by delta
-    if (this.spinTimer > 0) {
+    if (this.spinTimerSeconds > 0) {
       this.elapsedTime += delta * (1000 / 60);
     } else {
       this.elapsedTime = 0;
     }
 
-    if (this.elapsedTime >= 1000 && this.spinTimer > 0) {
-      this.spinTimer--;
+    if (this.elapsedTime >= 1000 && this.spinTimerSeconds > 0) {
+      this.spinTimerSeconds--;
       this.elapsedTime -= 1000;
-      // console.log("this.spinTimer: ", this.spinTimer);
-    }
-    if (this.spinTimer === 0) {
-      // something
     }
   }
 }
@@ -284,6 +286,7 @@ export class ReelInstance extends GameObject {
   declare self: Sprite;
   declare symbolIds: FromSprite[];
   symbolsData: { id: number; yStart: number }[] = [];
+  quickStop = false;
   timer = 0;
   timerMax = 0;
   firstPosition = 0;
@@ -357,7 +360,7 @@ export class ReelInstance extends GameObject {
     if (!gl.gameCanRun) return;
 
     // spin
-    if (gl.spinTimer > 0 && gl.isSpinning) {
+    if (gl.spinTimerSeconds > 0 && gl.isSpinning) {
       global.inst.canPress = false;
       this.timer = approach(this.timer, 0, 0.01);
       let index = 0;
@@ -372,7 +375,53 @@ export class ReelInstance extends GameObject {
       const reelGlobalBottomPoint =
         this.self.getGlobalPosition().y + this.self.height;
 
+      // pressed play button while spinning to stop the reel
+      if (this.quickStop) {
+        let index = 0;
+        let _index = 0;
+        const found: { sprite: { index: number; sprite: Sprite }[] } = {
+          sprite: [],
+        };
+        for (const symbol of this.symbolContainer.children) {
+          for (const slot of this.slotData) {
+            index = _index;
+            const symPos = symbol.getGlobalPosition();
+            const symbolCenter = {
+              x: symPos.x + symbol.width / 2,
+              y: symPos.y + symbol.height / 2,
+            };
+            if (pointMeeting({ x: symbolCenter.x, y: symbolCenter.y }, slot)) {
+              found.sprite.push({ index: _index, sprite: <Sprite>symbol });
+            }
+          }
+
+          if (found.sprite.length === 0) {
+            _index++;
+            continue;
+          } else if (found.sprite.length === 3) {
+            // randomize the 3 previous symbols i.e let the 3 previous symbols go out of the screen
+            if (
+              found.sprite[0].index - 1 > 0 &&
+              found.sprite[1].index - 1 > 0
+            ) {
+              this.randomizeSymbolTextues(this.symbolContainer, {
+                from: found.sprite[0].index - 1,
+                to: found.sprite[2].index - 3,
+              });
+            }
+          }
+
+          gl.spinTimerSeconds = 0;
+          if (index === lastSymbolIndex) break;
+          index++;
+        }
+      }
+
       for (const symbol of this.symbolContainer.children) {
+        if (this.quickStop) {
+          this.quickStop = false;
+          // continue;
+        }
         // for performance (hopefully)
         hideSymbolIfOutside(<Sprite>symbol, this.self);
 
@@ -397,23 +446,13 @@ export class ReelInstance extends GameObject {
           isPastReelBottom
         ) {
           // reset all symbol y-positions
-          for (let i = 0; i < this.symbolContainer.children.length; i++) {
-            const symbolA = this.symbolContainer.children[i];
-            const symbolB = this.symbolContainerBuffer.children[i];
-            symbolA.position.y = symbolB.position.y;
-          }
+          this.resetSymbolPositions(
+            this.symbolContainer,
+            this.symbolContainerBuffer,
+          );
 
           // randomize all symbol textures!
-          for (const symbol of this.symbolContainer.children) {
-            const newTexture =
-              this.slotTextures[
-                Math.floor(Math.random() * this.slotTextures.length)
-              ];
-            (symbol as Sprite).texture = newTexture;
-            if (newTexture.label !== undefined) {
-              symbol.label = newTexture.label;
-            }
-          }
+          this.randomizeSymbolTextues(this.symbolContainer);
         }
         index++;
       }
@@ -423,11 +462,11 @@ export class ReelInstance extends GameObject {
         const rcc = this.symbolContainer.children;
 
         // correct all symbol y-positions
-        rcc.forEach((symbol) => {
+        for (const symbol of rcc) {
           if (Math.floor(symbol.position.y) % symbol.height !== 0) {
             symbol.position.y = Math.floor((symbol.position.y -= 1));
           }
-        });
+        }
 
         //check if all symbol y-positions are in correct position and run checkIfWin
         rcc.every((symbol) => {
@@ -453,7 +492,7 @@ export class ReelInstance extends GameObject {
 
               playSound(
                 result.multiplier === 3 ? highScoreFanfare : sfxPoint,
-                0.3,
+                result.multiplier === 3 ? 0.8 : 1.2,
               );
 
               global.inst.currentBalance += result.amount;
@@ -466,7 +505,59 @@ export class ReelInstance extends GameObject {
 
       if (!gl.isSpinning) {
         this.speed = this.speedMax;
-        global.inst.canPress = true;
+
+        if (
+          !global.inst.gameRoundEnded &&
+          !global.inst.canPress &&
+          global.inst.currentBalance <= 0
+        ) {
+          if (global.inst.soundtrack?.playing()) {
+            global.inst.soundtrack?.fade(0.5, 0, 1000);
+          }
+        }
+
+        if (
+          global.inst.currentBalance <= 0 &&
+          !global.inst.canPress &&
+          !global.inst.gameRoundEnded
+        ) {
+          global.inst.gameRoundEnded = true;
+
+          setTimeout(() => {
+            global.inst.currentBalance =
+              global.inst.balanceInit + global.inst.currentWinAmount;
+            global.inst.gameRoundEnded = false;
+            global.inst.canPress = true;
+
+            global.inst.soundtrack?.stop();
+            global.inst.soundtrack = initSound(
+              choose(spinmaster, spinmaster, track2),
+            );
+
+            if (global.inst.currentWinAmount > 0) {
+              instanceCreate(
+                256,
+                canvasCenterY(global.inst.app),
+                UIScrollingText,
+                {
+                  label: "bet",
+                  anchorPoint: "topLeft",
+                  value: String(`YOU WIN! $ ${global.inst.currentWinAmount}`),
+                  global: global.inst,
+                  dir: "up",
+                },
+              );
+              playSound(highScoreFanfare, 0.8);
+              global.inst.currentWinAmount = 0;
+            }
+
+            // randomize all symbol textures!
+            this.randomizeSymbolTextues(this.symbolContainer);
+          }, 2500);
+        } else {
+          global.inst.gameRoundEnded = false;
+          global.inst.canPress = true;
+        }
       }
       this.timer = this.timerMax;
     }
@@ -485,6 +576,49 @@ export class ReelInstance extends GameObject {
     }
   }
 
+  /**
+   * Randomize the textures of the symbols
+   * @param container
+   * @param changeOnIndex { from: number; to: number }, if null we change texture on all symbols
+   */
+  randomizeSymbolTextues(
+    container: Container,
+    changeOnIndex?: { from: number; to: number },
+  ): void {
+    let index = 0;
+
+    if (changeOnIndex) {
+      for (let i = changeOnIndex.from; i <= changeOnIndex.to; i++) {
+        const newTexture = getRandomTexture(this.slotTextures);
+        (container.children[index] as Sprite).texture = newTexture;
+        if (newTexture.label !== undefined) {
+          container.children[index].label = newTexture.label;
+        }
+        index++;
+      }
+    } else {
+      for (const symbol of container.children) {
+        const newTexture = getRandomTexture(this.slotTextures);
+
+        (symbol as Sprite).texture = newTexture;
+        if (newTexture.label !== undefined) {
+          symbol.label = newTexture.label;
+        }
+      }
+    }
+    function getRandomTexture(slotTextures: Texture[]): Texture {
+      return slotTextures[Math.floor(Math.random() * slotTextures.length)];
+    }
+  }
+
+  resetSymbolPositions(container: Container, bufferContainer: Container): void {
+    for (let i = 0; i < container.children.length; i++) {
+      const symbolA = container.children[i];
+      const symbolB = bufferContainer.children[i];
+      symbolA.position.y = symbolB.position.y;
+    }
+  }
+
   private checkIfWin(
     symbolContainer: Container,
     global: GlobalState,
@@ -494,7 +628,7 @@ export class ReelInstance extends GameObject {
     setFound(this.slotData);
 
     if (found.length === 0) {
-      throw new Error("check collisions, should always find 3 symbols");
+      console.error("No symbols found");
     }
 
     const equalSymbols = found.filter(
@@ -600,7 +734,7 @@ export class ReelInstance extends GameObject {
           this.symbolsData[this.symbolsData.length - 1].yStart,
         );
         this.firstPosition = Math.abs(this.symbolsData[0].yStart);
-        this.timerMax = global.spinTimerMax;
+        this.timerMax = global.spinTimerSecondsMax;
         this.timer = this.timerMax;
 
         for (const _symbol of this.symbolContainer.children) {
@@ -693,6 +827,8 @@ export class ButtonInstance extends GameObject {
 
   protected stepEvent(global: GlobalState): void {
     if (!global.gameCanRun) return;
+    (<AnimatedSprite>this.self).currentFrame =
+      global.currentBalance > 0 ? 0 : 1;
   }
 }
 // --- UI CLASSES ---

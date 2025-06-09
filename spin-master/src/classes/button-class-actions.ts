@@ -1,5 +1,5 @@
-import { FederatedPointerEvent, AnimatedSprite } from "pixi.js";
-import { sfxCashRegister } from "../utilities/soundLibrary";
+import { FederatedPointerEvent } from "pixi.js";
+import { sfxCashRegister, sfxPick } from "../utilities/soundLibrary";
 import { playSound } from "../utilities/tools";
 import {
   GlobalState,
@@ -16,7 +16,13 @@ export const playButtonAction = (
   other: unknown,
 ) => {
   if (!global.gameCanRun) return;
-  if (global.spinTimer > 0) return;
+  if (global.spinTimerSeconds > 1 && global.currentBalance > 0) {
+    playSound(sfxPick, 1);
+    event.stopPropagation();
+    const rc = <ReelInstance>other;
+    rc.quickStop = true;
+    return;
+  }
   if (global.currentBalance <= 0) return;
   if (!global.canPress) return;
   if (!global.gameIsStarted) {
@@ -25,7 +31,12 @@ export const playButtonAction = (
     global.elapsedTime -= 1000;
   }
 
-  global.spinTimer = global.spinTimerMax;
+  if (!global.soundtrack?.playing()) {
+    global.soundtrack?.play();
+    global.soundtrack?.loop(true);
+  }
+
+  global.spinTimerSeconds = global.spinTimerSecondsMax;
   global.isSpinning = true;
 
   if (global.currentBalance > 0) {
@@ -33,20 +44,15 @@ export const playButtonAction = (
     playSound(sfxCashRegister, 0.5);
     global.currentBalance -= global.betAmount;
 
-    instanceCreate(
-      selfInst.self.x - 256,
-      selfInst.self.y - 256,
-      UIScrollingText,
-      {
-        label: "bet",
-        anchorPoint: "topLeft",
-        value: `-$${global.betAmount}`,
-        global: global,
-        dir: "up",
-      },
-    );
+    instanceCreate(selfInst.self.x - 256, 256, UIScrollingText, {
+      label: "bet",
+      anchorPoint: "topLeft",
+      value: `-$${global.betAmount}`,
+      global: global,
+      dir: "up",
+    });
   }
   // set frame
-  (<AnimatedSprite>selfInst.self).currentFrame =
-    global.currentBalance > 0 ? 0 : 1;
+  // (<AnimatedSprite>selfInst.self).currentFrame =
+  //   global.currentBalance > 0 ? 0 : 1;
 };

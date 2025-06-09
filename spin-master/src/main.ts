@@ -15,8 +15,6 @@ import {
   ReelInstance,
   UIGeneralText,
 } from "./classes/class-library";
-
-import { track0, track2 } from "./utilities/soundLibrary";
 import {
   BALANCE_INSTANCE,
   BG_CONTAINER,
@@ -32,7 +30,7 @@ import {
   createInteractiveInstances,
 } from "./utilities/instance-create-factory";
 import { canvasCenterX, choose, initSound } from "./utilities/tools";
-import { spinmaster } from "./utilities/soundLibrary";
+import { spinmaster, track2 } from "./utilities/soundLibrary";
 import {
   assetPath,
   SYM01,
@@ -44,7 +42,6 @@ import {
 } from "./utilities/imageLibrary";
 
 (async () => {
-  // await Assets.init();
   await Assets.init();
   await Assets.load([
     assetPath + SYM01 + ".png",
@@ -55,12 +52,8 @@ import {
     assetPath + SYM06 + ".png",
   ]);
 
-  // Create a new application
-  extensions.add(CullerPlugin);
-
   const app = new Application();
 
-  // Initialize the application
   await app.init({
     resizeTo: window,
     antialias: true,
@@ -115,8 +108,6 @@ import {
   const reelContainer = new Container({
     label: REEL_CONTAINER,
   });
-  reelContainer.cullable = true;
-  reelContainer.cullableChildren = true;
   reelContainer.addChild(reel.self);
   reelContainer.addChild(reel.symbolContainer);
   reelContainer.addChild(reel.slotContainer);
@@ -146,7 +137,6 @@ import {
     label: UI_CONTAINER,
   });
   guiInstArray.forEach((inst) => {
-    console.log("inst: ", inst.self);
     uiContainer.addChild(inst.self);
   });
 
@@ -162,7 +152,12 @@ import {
   gameContainer.addChild(instanceContainer); // middle layer
   gameContainer.addChild(uiContainer); // front layer
 
-  global.soundtrack = initSound(choose(spinmaster, track2), 0.5, true);
+  // --- INIT & PLAY SOUNDTRACK ---
+  global.soundtrack = initSound(
+    choose(spinmaster, spinmaster, track2),
+    0.5,
+    true,
+  );
   global.soundtrack.play();
   global.reset();
 
@@ -174,10 +169,12 @@ import {
     () =>
       guiInstArray.forEach((inst) => {
         if (inst.self.label === BALANCE_INSTANCE) {
+          // balance value
           (<UIGeneralText>inst).value = global.currentBalance.toString();
           inst.update({ inst: global });
         }
         if (inst.self.label === WIN_INSTANCE) {
+          // win value
           (<UIGeneralText>inst).value = global.currentWinAmount.toString();
           inst.update({ inst: global });
         }
@@ -186,13 +183,11 @@ import {
   ];
 
   global.app.stage.addChild(gameContainer);
-  // Append the application canvas to the document body
-  document.getElementById("pixi-container")!.appendChild(app.canvas);
 
-  // Listen for animate update
   app.ticker.add((time: Ticker) => {
-    // add logic to update state
     deltaTime = time.deltaTime;
     updatables.forEach((fn) => fn());
   });
+
+  document.getElementById("pixi-container")!.appendChild(app.canvas);
 })();
