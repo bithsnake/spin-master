@@ -4,9 +4,9 @@ import {
   Container,
   FederatedPointerEvent,
   Graphics,
-  Rectangle,
   Sprite,
   Text,
+  Texture,
   TilingSprite,
 } from "pixi.js";
 import { IRenderable, IUpdatable } from "../interfaces/interfaces";
@@ -21,6 +21,7 @@ import {
 } from "../types/types";
 import {
   approach,
+  canvasCenterY,
   createAnimatedSprite,
   createSprite,
   createText,
@@ -29,34 +30,44 @@ import {
   getAppScreenWidth,
   getAppStageHeight,
   getAppStageWidth,
-  lerp,
+  playSound,
+  pointMeeting,
 } from "../utilities/tools";
 
 import { STYLE_KEY } from "../utilities/style-library";
 import { playButtonAtlas, pointerAtlasHand } from "../utilities/atlas-library";
 import {
   GAME_CONTAINER,
-  REEL_CONTAINER,
+  SLOT_CONTAINER,
+  SYMBOL_CONTAINER,
 } from "../utilities/container-name-library";
+import { highScoreFanfare, sfxPoint } from "../utilities/soundLibrary";
+import {
+  assetPath,
+  SYM01,
+  SYM02,
+  SYM03,
+  SYM04,
+  SYM05,
+  SYM06,
+} from "../utilities/imageLibrary";
 
 export class GlobalState implements IUpdatable {
   app!: Application;
   canPress = false;
   spinTimerMax = 2;
   spinTimer = 0;
-  timerSpeed = 2;
+  isSpinning = false;
   intervalMax = 5;
   interval = this.intervalMax;
   count = 0;
   time = 0;
-  declare reel: ReelInstance;
   elapsedTime = 0;
-  dollarsMax = 100;
-  currentDollars = this.dollarsMax;
+  balanceInit = 100;
+  currentBalance = this.balanceInit;
   currentWinAmount = 0;
   currentWinAmountBuffer = 0;
   betAmount = 1;
-  winAmountTextPos: Point = { x: 0, y: 0 };
   soundtrack: Howl | null = null;
   timeOut = null;
   gameCanRun = false;
@@ -88,7 +99,7 @@ export class GlobalState implements IUpdatable {
     this.count = 0;
     this.time = 0;
     this.elapsedTime = 0;
-    this.currentDollars = this.dollarsMax;
+    this.currentBalance = this.balanceInit;
     this.currentWinAmount = 0;
     this.currentWinAmountBuffer = 0;
     this.timeOut = null;
@@ -111,8 +122,6 @@ export class GlobalState implements IUpdatable {
       });
     }
 
-    // this.timer = this.timer < minute ? this.timer++ : 0;
-
     // elapsed time is incremented by delta
     if (this.spinTimer > 0) {
       this.elapsedTime += delta * (1000 / 60);
@@ -123,7 +132,7 @@ export class GlobalState implements IUpdatable {
     if (this.elapsedTime >= 1000 && this.spinTimer > 0) {
       this.spinTimer--;
       this.elapsedTime -= 1000;
-      console.log("this.spinTimer: ", this.spinTimer);
+      // console.log("this.spinTimer: ", this.spinTimer);
     }
     if (this.spinTimer === 0) {
       // something
@@ -140,14 +149,9 @@ export abstract class GameObject implements IRenderable, IUpdatable {
     | TilingSprite
     | Container
     | Text;
-  other?: unknown;
-  isGrounded = false;
-  hsp = 0;
-  vsp = 0;
   size = { m: 5, l: 5 * 1.2, xl: 5 * 1.5 };
   abstract update(...args: unknown[]): void;
   protected abstract stepEvent(...args: unknown[]): void;
-  // protected abstract drawEvent(delta: number, ...args: unknown[]): void;
 
   initDefaultSizes() {
     this.size = {
@@ -278,81 +282,51 @@ export class PointerInstance extends GameObject {
 
 export class ReelInstance extends GameObject {
   declare self: Sprite;
-  declare visibleCounter: UIGeneralText;
   declare symbolIds: FromSprite[];
-  symbols: { id: number; yStart: number; sprite: Sprite }[] = [];
-  count = 0;
-  countMax = 0;
+  symbolsData: { id: number; yStart: number }[] = [];
   timer = 0;
   timerMax = 0;
   firstPosition = 0;
   lastYPosition = 0;
-  reelContainer: Container = new Container();
+  speedMax = 128;
+  speed = this.speedMax;
+  symbolContainer: Container = new Container();
+  symbolContainerBuffer: Container = new Container();
+  slotContainer: Container = new Container();
+  hasSpinnedReel = false;
+  randomizePosition = Math.round(Math.random());
+  slotData: Graphics[] = [];
+  wasUsed = false;
+  slotTextures: Texture[] = [];
+
   constructor(reel: Sprite, symbolIds: FromSprite[], global: GlobalState) {
     super();
     // reel
+    this.symbolContainer.label = SYMBOL_CONTAINER;
+    this.slotContainer.label = SLOT_CONTAINER;
     this.symbolIds = symbolIds;
     this.self = reel;
+    this.self.allowChildren = true;
     this.self.label = "reel";
     this.self.interactive = true;
-    this.reelContainer.label = REEL_CONTAINER;
-    // this.reelContainer.cullable = true;
-    // this.reelContainer.cullableChildren = true;
-    // this.reelContainer.position.set(
-    //   this.self.x - this.self.width / 2,
-    //   this.self.y,
-    // );
-    // this.reelContainer.cullArea = new Rectangle(
-    //   0,
-    //   0,
-    //   this.self.width,
-    //   this.self.height,
-    // );
+
+    this.slotTextures = [
+      Texture.from(assetPath + SYM01 + ".png"),
+      Texture.from(assetPath + SYM02 + ".png"),
+      Texture.from(assetPath + SYM03 + ".png"),
+      Texture.from(assetPath + SYM04 + ".png"),
+      Texture.from(assetPath + SYM05 + ".png"),
+      Texture.from(assetPath + SYM06 + ".png"),
+    ];
+
+    this.slotTextures.forEach((texture) => {
+      const name = texture.label!.split("/")[5].split(".")[0];
+      texture.label = name;
+    });
+    this.addSlots();
 
     (async () => {
-      // this.symbolIds.forEach(async (symbol, index) => {
-      //   const symbolSprite = await createSprite(
-      //     6,
-      //     0,
-      //     "topLeft",
-      //     { w: 1, h: 1 },
-      //     symbol,
-      //   );
-      //   symbolSprite.label = `${symbol}_${index}`;
-      //   symbolSprite.position.y = -index * symbolSprite.height;
-      //   this.reelContainer.addChild(symbolSprite);
-      //   this.symbols.push({
-      //     id: index,
-      //     yStart: symbolSprite.y,
-      //     sprite: symbolSprite,
-      //   });
-      //   // all symbols added
-      //   if (index === this.symbolIds.length - 1) {
-      //     // sort the symbols since they were added asynchronously
-      //     this.symbols.sort((a, b) => {
-      //       return a.id - b.id;
-      //     });
-      //     this.reelContainer.children.sort((a, b) => {
-      //       const firstIndex = +a.label.split("_")[1];
-      //       const compareIndex = +b.label.split("_")[1];
-      //       return firstIndex - compareIndex;
-      //     });
-      //     this.countMax = this.symbolIds.length;
-      //     this.lastYPosition = this.symbols[this.symbols.length - 1].yStart;
-      //     this.timerMax = global.spinTimerMax;
-      //     this.timer = this.timerMax;
-      //     this.reelContainer.children.forEach((symbol) => {
-      //       symbol.label = symbol.label.split("_")[0];
-      //       // @ts-expect-error force a property on sprite
-      //       symbol.startPosition = symbol.position.y;
-      //     });
-      //     this.visibleCounter = await instanceCreate(0, 512, UIGeneralText, {
-      //       anchorPoint: "topLeft",
-      //       title: "COUNTER: ",
-      //       textSize: 1.5,
-      //     });
-      //   }
-      // });
+      await this.addSymbols(global);
     })();
 
     this.initDefaultSizes();
@@ -374,88 +348,288 @@ export class ReelInstance extends GameObject {
     return new ReelInstance(reel, symbolIds, global);
   }
   update(global: { inst: GlobalState }): void {
+    if (this.slotData.length === 0) this.initSlotData();
     this.stepEvent(global);
-    // this.reelContainer.children.forEach((symbol) => {
-    //   if (
-    //     symbol.position.y + symbol.height < 0 ||
-    //     symbol.position.y > this.self.height
-    //   ) {
-    //     symbol.renderable = false;
-    //     symbol.visible = false;
-    //   } else {
-    //     symbol.renderable = true;
-    //     symbol.visible = true;
-    //   }
-    // });
   }
 
   protected stepEvent(global: { inst: GlobalState }): void {
     const gl = global.inst;
-    const gameContainer = gl.app.stage.getChildByLabel(GAME_CONTAINER);
-    if (gameContainer !== null) {
-      if (gameContainer.children.indexOf(this.visibleCounter.self) === -1) {
-        gameContainer.addChild(this.visibleCounter.self);
-      }
-    }
-
     if (!gl.gameCanRun) return;
 
-    if (gl.spinTimer > 0) {
+    // spin
+    if (gl.spinTimer > 0 && gl.isSpinning) {
       global.inst.canPress = false;
-      // lerp
-      this.timer = lerp(this.timer, 0, 0.01);
-      this.count = this.count >= this.countMax - 1 ? 0 : this.count + 1;
-      this.reelContainer.children.forEach((symbol, index) => {
-        symbol.position.y += 32 * this.timer * 0.5;
+      this.timer = approach(this.timer, 0, 0.01);
+      let index = 0;
+
+      if (this.hasSpinnedReel) {
+        this.hasSpinnedReel = false;
+        this.wasUsed = false;
+      }
+
+      const lastSymbolIndex = this.symbolContainer.children.length - 1;
+
+      const reelGlobalBottomPoint =
+        this.self.getGlobalPosition().y + this.self.height;
+
+      for (const symbol of this.symbolContainer.children) {
+        // for performance (hopefully)
+        hideSymbolIfOutside(<Sprite>symbol, this.self);
+
+        this.speed = this.speedMax * this.timer * 0.5;
+        symbol.position.y += this.speed;
+
+        const tailSymbolData = {
+          y: this.symbolContainer.children[lastSymbolIndex].position.y,
+          height: this.symbolContainer.children[lastSymbolIndex].height,
+          lastSymbolUid: this.symbolContainer.children[lastSymbolIndex].uid,
+        };
+
+        const symbolYPoint = tailSymbolData.y + tailSymbolData.height;
+
+        const isPastReelBottom =
+          Math.floor(symbolYPoint) > reelGlobalBottomPoint;
+
+        // last symbols is below the reel
         if (
-          Math.floor(symbol.position.y + symbol.height) > this.lastYPosition
+          tailSymbolData.lastSymbolUid === symbol.uid &&
+          index === lastSymbolIndex &&
+          isPastReelBottom
         ) {
-          console.log("my index: ", index);
-          const lastSymbol =
-            this.reelContainer.children[
-              this.reelContainer.children.length - 1 - index
-            ];
-          console.log("lastSymbol: ", lastSymbol, lastSymbol.position.y);
-          // go back to first position - 1 position to keep the reel infinite
-          // const firstPosition = -128 * (this.countMax - 1);
-          const firstPosition = -128 * 4;
-          symbol.position.y = firstPosition;
-          console.log("my new position: ", symbol.position.y);
+          // reset all symbol y-positions
+          for (let i = 0; i < this.symbolContainer.children.length; i++) {
+            const symbolA = this.symbolContainer.children[i];
+            const symbolB = this.symbolContainerBuffer.children[i];
+            symbolA.position.y = symbolB.position.y;
+          }
+
+          // randomize all symbol textures!
+          for (const symbol of this.symbolContainer.children) {
+            const newTexture =
+              this.slotTextures[
+                Math.floor(Math.random() * this.slotTextures.length)
+              ];
+            (symbol as Sprite).texture = newTexture;
+            if (newTexture.label !== undefined) {
+              symbol.label = newTexture.label;
+            }
+          }
         }
-      });
-      console.log(this.count);
+        index++;
+      }
     } else {
-      let canPress = false;
-      this.reelContainer.children.forEach((symbol, index) => {
-        if (Math.floor(symbol.position.y) % symbol.height !== 0) {
-          symbol.position.y = Math.floor((symbol.position.y -= 1));
-        }
-      });
+      // stop
+      if (gl.isSpinning) {
+        const rcc = this.symbolContainer.children;
 
-      this.reelContainer.children.every((symbol, index) => {
-        if (Math.floor(symbol.position.y) % symbol.height === 0) {
-          canPress = true;
-        }
-      });
+        // correct all symbol y-positions
+        rcc.forEach((symbol) => {
+          if (Math.floor(symbol.position.y) % symbol.height !== 0) {
+            symbol.position.y = Math.floor((symbol.position.y -= 1));
+          }
+        });
 
-      if (canPress) {
+        //check if all symbol y-positions are in correct position and run checkIfWin
+        rcc.every((symbol) => {
+          if (Math.floor(symbol.position.y) % symbol.height === 0) {
+            // check if we have a win
+            const result = this.checkIfWin(this.symbolContainer, global.inst);
+
+            if (result.amount > 0) {
+              instanceCreate(
+                256,
+                canvasCenterY(global.inst.app),
+                UIScrollingText,
+                {
+                  label: "bet",
+                  anchorPoint: "topLeft",
+                  value: String(
+                    `${result.multiplier === 3 ? "JACKPOT!\n" : ""}WIN! $ ${result.amount}`,
+                  ),
+                  global: global.inst,
+                  dir: "up",
+                },
+              );
+
+              playSound(
+                result.multiplier === 3 ? highScoreFanfare : sfxPoint,
+                0.3,
+              );
+
+              global.inst.currentBalance += result.amount;
+              global.inst.currentWinAmount += result.amount;
+            }
+            gl.isSpinning = false;
+          }
+        });
+      }
+
+      if (!gl.isSpinning) {
+        this.speed = this.speedMax;
         global.inst.canPress = true;
       }
       this.timer = this.timerMax;
     }
-    this.visibleCounter.value = this.count.toString();
-    this.visibleCounter.update(global.inst);
+
+    function hideSymbolIfOutside(symbol: Sprite, self: Sprite): void {
+      if (
+        symbol.position.y + symbol.height < 0 ||
+        symbol.position.y > self.height
+      ) {
+        symbol.renderable = false;
+        symbol.visible = false;
+      } else {
+        symbol.renderable = true;
+        symbol.visible = true;
+      }
+    }
+  }
+
+  private checkIfWin(
+    symbolContainer: Container,
+    global: GlobalState,
+  ): { amount: number; multiplier: number } {
+    const found: Sprite[] = [];
+
+    setFound(this.slotData);
+
+    if (found.length === 0) {
+      throw new Error("check collisions, should always find 3 symbols");
+    }
+
+    const equalSymbols = found.filter(
+      (symbol) => found.filter((s) => s.label === symbol.label).length > 1,
+    );
+
+    return {
+      amount: global.betAmount * equalSymbols.length,
+      multiplier: equalSymbols.length,
+    };
+
+    function setFound(slotData: Graphics[]): void {
+      const visibleSymbols = symbolContainer.children.filter(
+        (symbol) => symbol.visible === true,
+      );
+      for (const symbol of visibleSymbols) {
+        for (const slot of slotData) {
+          const symPos = symbol.getGlobalPosition();
+          const symbolCenter = {
+            x: symPos.x + symbol.width / 2,
+            y: symPos.y + symbol.height / 2,
+          };
+          if (pointMeeting({ x: symbolCenter.x, y: symbolCenter.y }, slot)) {
+            found.push(<Sprite>symbol);
+          }
+        }
+      }
+    }
+  }
+
+  private addSlots(): void {
+    const height = this.self.height;
+    const slots = 3;
+    const reelPadding = 0;
+    const slotHeight = (height - reelPadding) / slots;
+
+    for (let i = 0; i < slots; i++) {
+      const slotYTop = i * slotHeight;
+      const colMask = new Graphics()
+        .rect(0, 0, this.self.width, slotHeight)
+        .fill(0xff0000);
+      // const x = this.self.x;
+      // colMask.circle(x, 0, 4).fill(0x000000);
+      // colMask.circle(x, slotHeight, 4).fill(0x000000);
+      colMask.alpha = 0;
+      colMask.position.set(0, slotYTop);
+      this.slotContainer.addChild(colMask);
+    }
+  }
+
+  private initSlotData(): void {
+    this.slotData = this.slotContainer.children.map((slot) => <Graphics>slot);
+  }
+
+  private async addSymbols(global: GlobalState): Promise<void> {
+    let index = 0;
+    for (const symbol of this.symbolIds) {
+      const symbolSprite = await createSprite(
+        6,
+        0,
+        "topLeft",
+        { w: 1, h: 1 },
+        symbol,
+      );
+
+      symbolSprite.label = `${symbol}_${index}`;
+      // const colBox = createCollisionMask(
+      //   symbolSprite.x,
+      //   symbolSprite.y,
+      //   symbolSprite.width,
+      //   symbolSprite.height,
+      //   0x000000,
+      //   0xff0000,
+      //   0xffffff,
+      //   0.5,
+      // );
+      // symbolSprite.addChild(colBox);
+      symbolSprite.position.y =
+        symbolSprite.height * 2 + -index * symbolSprite.height;
+      this.symbolContainer.addChild(symbolSprite);
+
+      this.symbolsData.push({
+        id: index,
+        yStart: symbolSprite.y,
+      });
+
+      index++;
+
+      // all symbols added
+      if (index === this.symbolIds.length) {
+        // sort the symbols since they were added asynchronously
+        this.symbolsData.sort((a, b) => {
+          return a.id - b.id;
+        });
+
+        this.symbolContainer.children.sort((a, b) => {
+          const firstIndex = +a.label.split("_")[1];
+          const compareIndex = +b.label.split("_")[1];
+          return firstIndex - compareIndex;
+        });
+
+        this.lastYPosition = Math.abs(
+          this.symbolsData[this.symbolsData.length - 1].yStart,
+        );
+        this.firstPosition = Math.abs(this.symbolsData[0].yStart);
+        this.timerMax = global.spinTimerMax;
+        this.timer = this.timerMax;
+
+        for (const _symbol of this.symbolContainer.children) {
+          _symbol.label = _symbol.label.split("_")[0];
+        }
+      }
+      const buffer = new Container();
+      for (const child of this.symbolContainer.children) {
+        if (child instanceof Sprite) {
+          const clone = new Sprite(child.texture);
+          clone.position.copyFrom(child.position);
+          clone.width = child.width;
+          clone.height = child.height;
+          clone.label = child.label;
+          buffer.addChild(clone);
+        }
+      }
+      this.symbolContainerBuffer = buffer;
+    }
   }
 }
 
 export class ButtonInstance extends GameObject {
   self: Sprite | AnimatedSprite;
-  yStart = 0;
-  scaleStart: Point = { x: 0, y: 0 };
   action: (
     global: GlobalState,
     selfInst: ButtonInstance,
     event: FederatedPointerEvent,
+    other: unknown,
   ) => void;
 
   constructor(
@@ -465,7 +639,9 @@ export class ButtonInstance extends GameObject {
       global: GlobalState,
       selfInst: ButtonInstance,
       event: FederatedPointerEvent,
+      other: unknown,
     ) => void,
+    other: unknown,
   ) {
     super();
     this.self = button;
@@ -473,7 +649,7 @@ export class ButtonInstance extends GameObject {
     this.action = action;
 
     this.self.on("pointerdown", (_event: FederatedPointerEvent) => {
-      this.action(global, this, _event);
+      this.action(global, this, _event, other);
     });
     this.initDefaultSizes();
   }
@@ -486,14 +662,16 @@ export class ButtonInstance extends GameObject {
       anchorPoint: Point;
       size: number;
       global: GlobalState;
+      other: unknown;
       action: (
         global: GlobalState,
         selfInst: ButtonInstance,
         event: FederatedPointerEvent,
+        other: unknown,
       ) => void;
     },
   ) {
-    const { atlasData, anchorPoint, size, global, action } = options;
+    const { atlasData, anchorPoint, size, global, other, action } = options;
 
     const button = await createAnimatedSprite(
       atlasData || playButtonAtlas,
@@ -507,7 +685,7 @@ export class ButtonInstance extends GameObject {
         speed: 0,
       },
     );
-    return new ButtonInstance(button, global, action);
+    return new ButtonInstance(button, global, action, other);
   }
   update(global: { inst: GlobalState }): void {
     this.stepEvent(global.inst);
@@ -567,7 +745,7 @@ export class UIScrollingText extends UIText {
 
   protected stepEvent(global: GlobalState): void {
     this.timer++;
-    this.self.text = `${this.value}`;
+    this.self.text = this.value;
 
     if (this.timer % 6 === 0) {
       this.self.alpha = approach(this.self.alpha, 0, 0.05);
@@ -599,12 +777,12 @@ export class UIGeneralText extends GameObject {
     super();
     this.title = text.text;
     this.self = text;
-    this.self.label = "uiGeneralText";
+    // this.self.label = "uiGeneralText";
     this.initDefaultSizes();
   }
 
   static async create(x: number, y: number, options: TextOptions) {
-    const { anchorPoint, title, textSize } = options;
+    const { anchorPoint, title, textSize, label } = options;
     const text = await createText(
       x,
       y,
@@ -612,6 +790,8 @@ export class UIGeneralText extends GameObject {
       title,
       STYLE_KEY.normal,
       textSize || 1.5,
+      null,
+      label || "uiGeneralText",
     );
     return new UIGeneralText(text);
   }
@@ -624,7 +804,7 @@ export class UIGeneralText extends GameObject {
     if (global.gameCanRun === false) {
       this.self.text = "GAME NOT RUNNING";
     }
-    this.self.text = `${this.title} ${this.value}`;
+    this.self.text = `${this.title}${this.value}`;
   }
 }
 

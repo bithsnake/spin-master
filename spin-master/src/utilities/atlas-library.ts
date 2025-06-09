@@ -38,6 +38,7 @@ export const pointerAtlasHand: AtlasData = {
 export const POINTER_HAND_ANIMS: { [key: string]: string } = {
   pick: "pick",
 };
+
 export const playButtonAtlas: AtlasData = {
   frames: {
     enable: {

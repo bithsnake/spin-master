@@ -1,3 +1,4 @@
+export const assetPath = "/public/assets/";
 export const PLAY_DISABLED = "PLAY_DISABLED";
 export const PLAY_ENABLED = "PLAY";
 export const REEL = "REEL";

@@ -1,6 +1,7 @@
 import { initDevtools } from "@pixi/devtools";
 import {
   Application,
+  Assets,
   Container,
   CullerPlugin,
   extensions,
@@ -15,12 +16,13 @@ import {
   UIGeneralText,
 } from "./classes/class-library";
 
-// import { track0, track2 } from "./utilities/soundLibrary";
+import { track0, track2 } from "./utilities/soundLibrary";
 import {
   BALANCE_INSTANCE,
   BG_CONTAINER,
   GAME_CONTAINER,
   INSTANCE_CONTAINER,
+  REEL_CONTAINER,
   UI_CONTAINER,
   WIN_INSTANCE,
 } from "./utilities/container-name-library";
@@ -29,10 +31,29 @@ import {
   createGuiTextInstances,
   createInteractiveInstances,
 } from "./utilities/instance-create-factory";
-import { canvasCenterX } from "./utilities/tools";
+import { canvasCenterX, choose, initSound } from "./utilities/tools";
+import { spinmaster } from "./utilities/soundLibrary";
+import {
+  assetPath,
+  SYM01,
+  SYM02,
+  SYM03,
+  SYM04,
+  SYM05,
+  SYM06,
+} from "./utilities/imageLibrary";
 
 (async () => {
   // await Assets.init();
+  await Assets.init();
+  await Assets.load([
+    assetPath + SYM01 + ".png",
+    assetPath + SYM02 + ".png",
+    assetPath + SYM03 + ".png",
+    assetPath + SYM04 + ".png",
+    assetPath + SYM05 + ".png",
+    assetPath + SYM06 + ".png",
+  ]);
 
   // Create a new application
   extensions.add(CullerPlugin);
@@ -71,31 +92,34 @@ import { canvasCenterX } from "./utilities/tools";
   const REEL_EDGE = 12;
   const REEL_WIDTH = SYMBOL_SIZE + REEL_EDGE * SYMBOL_AMOUNT;
 
-  const margin = (app.screen.height - SYMBOL_SIZE * SYMBOL_AMOUNT) / 2;
-  reel.self.y = margin;
+  const yPos = (app.screen.height - SYMBOL_SIZE * SYMBOL_AMOUNT) / 2;
+  reel.self.y = yPos;
   reel.self.x = canvasCenterX(app) - REEL_WIDTH / 2;
-  reel.reelContainer.y = reel.self.y;
-  reel.reelContainer.x = reel.self.x;
+  reel.slotContainer.y = reel.self.y;
+  reel.slotContainer.x = reel.self.x;
+  reel.symbolContainer.y = reel.self.y;
+  reel.symbolContainer.x = reel.self.x;
 
-  const top = new Graphics().rect(0, 0, app.screen.width, margin).fill("black");
+  // add borders on top and bottom
+  const top = new Graphics().rect(0, 0, app.screen.width, yPos).fill("black");
   const bottom = new Graphics()
     .rect(
       0,
-      SYMBOL_SIZE * SYMBOL_AMOUNT + margin + REEL_EDGE,
+      SYMBOL_SIZE * SYMBOL_AMOUNT + yPos + REEL_EDGE,
       app.screen.width,
-      margin,
+      yPos,
     )
     .fill("black");
 
   // --- containers ---
-
   const reelContainer = new Container({
-    label: "REEL_CONTAINER",
+    label: REEL_CONTAINER,
   });
   reelContainer.cullable = true;
   reelContainer.cullableChildren = true;
   reelContainer.addChild(reel.self);
-  reelContainer.addChild(reel.reelContainer);
+  reelContainer.addChild(reel.symbolContainer);
+  reelContainer.addChild(reel.slotContainer);
 
   // BG
   const bgContainer = new Container({
@@ -136,15 +160,12 @@ import { canvasCenterX } from "./utilities/tools";
 
   gameContainer.addChild(bgContainer); // back layer
   gameContainer.addChild(instanceContainer); // middle layer
-
   gameContainer.addChild(uiContainer); // front layer
 
-  // global.soundtrack = initSound(choose(track0, track2), 0.3, true);
-  // global.soundtrack.play();
+  global.soundtrack = initSound(choose(spinmaster, track2), 0.5, true);
+  global.soundtrack.play();
   global.reset();
 
-  // array of anonymous function to run each instances own update function
-  // with their proper function parameters that they need
   let deltaTime = 0;
   const updatables = [
     () => global.update(deltaTime),
@@ -153,7 +174,7 @@ import { canvasCenterX } from "./utilities/tools";
     () =>
       guiInstArray.forEach((inst) => {
         if (inst.self.label === BALANCE_INSTANCE) {
-          (<UIGeneralText>inst).value = global.currentDollars.toString();
+          (<UIGeneralText>inst).value = global.currentBalance.toString();
           inst.update({ inst: global });
         }
         if (inst.self.label === WIN_INSTANCE) {

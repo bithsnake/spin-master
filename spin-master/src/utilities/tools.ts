@@ -7,6 +7,7 @@ import {
   Renderer,
   AnimatedSprite,
   Spritesheet,
+  Graphics,
 } from "pixi.js";
 import { SoundLibrary } from "./soundLibrary";
 import { Howl } from "howler";
@@ -47,7 +48,6 @@ export function setAnchorPoint(anchorPoint: AnchorPoint) {
 }
 
 // --- GLOBAL ---
-
 export function getAppScreenWidth(app: Application) {
   return app?.screen ? app.screen.width : 0;
 }
@@ -205,7 +205,36 @@ export function choose<T>(...args: T[]): T {
   return args[Math.floor(Math.random() * args.length)];
 }
 
-// Basic lerp funtion.
-export function lerp(a1: number, a2: number, t: number) {
-  return a1 * (1 - t) + a2 * t;
+export function pointMeeting(a: Point, b: Sprite | Graphics) {
+  const _a = {
+    x: a.x,
+    y: a.y,
+  };
+  const _b = {
+    x: b.getGlobalPosition().x,
+    y: b.getGlobalPosition().y,
+    width: b.width,
+    height: b.height,
+  };
+  const isMeetingY = _a.y < _b.y + _b.height && _a.y + 1 > _b.y;
+  const isMeetingX = _a.x < _b.x + _b.width && _a.x + 1 > _b.x;
+  const isMeeting = isMeetingY && isMeetingX;
+  return isMeeting;
+}
+
+export function createCollisionMask(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  maskColor: number = 0x000000,
+  anchorPointColor: number = 0xffffff,
+  alpha: number = 0.3,
+): Graphics {
+  const graphics = new Graphics().rect(0, 0, w, h).fill(maskColor);
+  graphics.circle(x, y, 4).fill(anchorPointColor);
+
+  graphics.alpha = alpha;
+  graphics.position.set(0, y);
+  return graphics;
 }

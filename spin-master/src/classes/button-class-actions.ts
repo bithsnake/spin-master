@@ -13,13 +13,11 @@ export const playButtonAction = (
   global: GlobalState,
   selfInst: ButtonInstance,
   event: FederatedPointerEvent,
-  reelInstance: ReelInstance,
+  other: unknown,
 ) => {
-  console.log("PLAY");
-  console.log("the event: ", event);
   if (!global.gameCanRun) return;
   if (global.spinTimer > 0) return;
-  if (global.currentDollars <= 0) return;
+  if (global.currentBalance <= 0) return;
   if (!global.canPress) return;
   if (!global.gameIsStarted) {
     global.gameIsStarted = true;
@@ -27,24 +25,22 @@ export const playButtonAction = (
     global.elapsedTime -= 1000;
   }
 
-  // reelInstance.reelContainer.children.forEach((symbol) => {
-  //   symbol.
-  // })
   global.spinTimer = global.spinTimerMax;
-  if (global.currentDollars > 0) {
-    playSound(sfxCashRegister, 0.3);
-    global.currentDollars -= global.betAmount;
+  global.isSpinning = true;
 
-    console.log("PLAY");
+  if (global.currentBalance > 0) {
+    (<ReelInstance>other).randomizePosition = Math.round(Math.random());
+    playSound(sfxCashRegister, 0.5);
+    global.currentBalance -= global.betAmount;
 
     instanceCreate(
-      selfInst.self.x - 64,
+      selfInst.self.x - 256,
       selfInst.self.y - 256,
       UIScrollingText,
       {
         label: "bet",
         anchorPoint: "topLeft",
-        value: `-${global.betAmount}`,
+        value: `-$${global.betAmount}`,
         global: global,
         dir: "up",
       },
@@ -52,5 +48,5 @@ export const playButtonAction = (
   }
   // set frame
   (<AnimatedSprite>selfInst.self).currentFrame =
-    global.currentDollars > 0 ? 0 : 1;
+    global.currentBalance > 0 ? 0 : 1;
 };

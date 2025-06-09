@@ -10,8 +10,6 @@ export type ColorType =
   | 0xb3f909
   | 0xc4cfcf;
 
-export type COLOR_TYPE = (typeof COLOR)[keyof typeof COLOR];
-
 export const COLOR = {
   red: 0xff0000 as ColorType,
   blue: 0x0000ff as ColorType,

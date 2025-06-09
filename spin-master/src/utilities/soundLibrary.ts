@@ -9,6 +9,7 @@ export const sfxCashRegister: SoundLibrary =
 export const track0: SoundLibrary = "/public/assets/audio/track0.mp3";
 export const track1: SoundLibrary = "/public/assets/audio/track1.mp3";
 export const track2: SoundLibrary = "/public/assets/audio/track2.mp3";
+export const spinmaster: SoundLibrary = "/public/assets/audio/_spinmaster.mp3";
 export const trackFinishStage: SoundLibrary =
   "/public/assets/audio/trackFinishStage.mp3";
 

@@ -1,4 +1,3 @@
-import { COLOR_TYPE } from "../utilities/colorLibrary";
 import {
   PLAY_DISABLED,
   PLAY_ENABLED,
@@ -67,15 +66,6 @@ export type AtlasData = {
   animations: { [key: string]: Animations };
 };
 
-export interface MousePosition {
-  x: number;
-  y: number;
-  hsp: number;
-  vsp: number;
-}
-
-export type MouseDownType = { hold: boolean; event: MouseEvent };
-
 export type StyleType = "normal" | "title";
 
 export type AlignType = "left" | "center" | "right";
@@ -91,24 +81,11 @@ export type AnchorPoint =
   | "centerRight"
   | "center";
 
-export interface SpineAssetPath {
-  atlas: string;
-  json: string;
-  animation: string[];
-}
-
-export type SpineInstanceSettings = {
-  size: number;
-  color: COLOR_TYPE;
-  eventMode: "none" | "static" | "auto";
-  alpha: number;
-  interactive: boolean;
-};
-
 export type TextOptions = {
   anchorPoint?: AnchorPoint;
   title: string;
   textSize: number;
+  label?: string;
 };
 
 export type Direction = "up" | "down" | "left" | "right";
