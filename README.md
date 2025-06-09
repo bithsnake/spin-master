@@ -9,3 +9,7 @@
 Adjust the initial balance amount by adjusting the property **balanceInit** on the **GlobalState**  class
 
 **code, hand sprite-texture, soundfx's, music** made by Kimmo Savilampi (me)
+
+
+**PS**: The repo folder accidentally exists in another level of the project folder, but for now i do not
+want to "flatten" the folder stucture, otherwise i will loose the commit history in the overview
