@@ -3,8 +3,6 @@ import {
   Application,
   Assets,
   Container,
-  CullerPlugin,
-  extensions,
   Graphics,
   Rectangle,
   Ticker,

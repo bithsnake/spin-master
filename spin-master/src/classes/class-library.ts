@@ -71,7 +71,7 @@ export class GlobalState implements IUpdatable {
   count = 0;
   time = 0;
   elapsedTime = 0;
-  balanceInit = 100;
+  balanceInit = 2;
   currentBalance = this.balanceInit;
   currentWinAmount = 0;
   currentWinAmountBuffer = 0;

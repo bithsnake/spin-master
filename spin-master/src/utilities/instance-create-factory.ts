@@ -37,7 +37,7 @@ export async function createGuiTextInstances(global: GlobalState) {
     },
   );
 
-  GUIBalanceTextInstance.title = "Balance: ";
+  GUIBalanceTextInstance.title = "Balance: $";
 
   const GUIWinTextInstance = await instanceCreate(
     canvasCenter.x + 225,
@@ -51,7 +51,7 @@ export async function createGuiTextInstances(global: GlobalState) {
     },
   );
 
-  GUIWinTextInstance.title = "Win: ";
+  GUIWinTextInstance.title = "Win: $";
 
   return [GUIWinTextInstance, GUIBalanceTextInstance];
 }
