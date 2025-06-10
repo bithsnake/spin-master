@@ -1,6 +1,7 @@
-export const assetPath = "/public/assets/";
+export const assetPath = "assets/";
 export const PLAY_DISABLED = "PLAY_DISABLED";
 export const PLAY_ENABLED = "PLAY";
+export const PICKER = "PICKER";
 export const REEL = "REEL";
 export const SYM01 = "SYM01";
 export const SYM02 = "SYM02";

@@ -8,3 +8,4 @@ export const WIN_INSTANCE = "WIN_INSTANCE";
 export const SYMBOL_CONTAINER = "SYMBOL_CONTAINER";
 export const SLOT_CONTAINER = "SLOT_CONTAINER";
 export const PLAY_BUTTON = "PLAY_BUTTON";
+export const PICKER = "PICKER";

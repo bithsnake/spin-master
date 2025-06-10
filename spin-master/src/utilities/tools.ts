@@ -1,6 +1,5 @@
 import {
   Sprite,
-  Assets,
   TilingSprite,
   Text,
   Application,
@@ -8,6 +7,7 @@ import {
   AnimatedSprite,
   Spritesheet,
   Graphics,
+  Texture,
 } from "pixi.js";
 import { SoundLibrary } from "./soundLibrary";
 import { Howl } from "howler";
@@ -21,6 +21,7 @@ import {
   StyleType,
 } from "../types/types";
 import { STYLE } from "./style-library";
+import { assetPath } from "./imageLibrary";
 
 export function setAnchorPoint(anchorPoint: AnchorPoint) {
   switch (anchorPoint) {
@@ -47,16 +48,18 @@ export function setAnchorPoint(anchorPoint: AnchorPoint) {
   }
 }
 
-// --- GLOBAL ---
 export function getAppScreenWidth(app: Application) {
   return app?.screen ? app.screen.width : 0;
 }
+
 export function getAppScreenHeight(app: Application) {
   return app?.screen ? app.screen.height : 0;
 }
+
 export function getAppStageWidth(app: Application) {
   return app?.stage ? app.stage.width : 0;
 }
+
 export function getAppStageHeight(app: Application) {
   return app?.stage ? app.stage.height : 0;
 }
@@ -64,6 +67,7 @@ export function getAppStageHeight(app: Application) {
 export function canvasCenterX(app: Application<Renderer>) {
   return app?.canvas ? app.canvas.width / 2 : 0;
 }
+
 export function canvasCenterY(app: Application<Renderer>) {
   return app?.canvas ? app.canvas.height / 2 : 0;
 }
@@ -74,7 +78,7 @@ export function playSound(
   vol = 0.5,
   loop = false,
   pitch = 1,
-) {
+): Howl {
   const sound = new Howl({
     src: [src],
     loop,
@@ -93,14 +97,14 @@ export function initSound(src: SoundLibrary, vol = 0.7, loop = false): Howl {
   });
 }
 
-export async function createSprite(
+export function createSprite(
   x: number,
   y: number,
   anchorPoint: AnchorPoint,
   size: Size = { w: 1, h: 1 },
   spriteName: FromSprite,
-): Promise<Sprite> {
-  const texture = await Assets.load("/assets/" + spriteName + ".png");
+): Sprite {
+  const texture = Texture.from(assetPath + spriteName + ".png");
   texture.source.scaleMode = "nearest";
   const sprite = Sprite.from(texture);
   const _anchorPoint = setAnchorPoint(anchorPoint);
@@ -122,16 +126,15 @@ export async function createAnimatedSprite(
     speed: 0.1,
   },
 ): Promise<AnimatedSprite> {
-  const texture = await Assets.load(atlasData.meta.image);
+  const texture = Texture.from(atlasData.meta.image);
   texture.source.scaleMode = "nearest";
   const spriteSheet = new Spritesheet(texture, atlasData);
   await spriteSheet.parse();
   const anim = spriteSheet.animations[animate.anim];
   const animatedSprite = new AnimatedSprite(anim);
 
-  if (anchorPoint) {
-    animatedSprite.anchor.set(anchorPoint.x, anchorPoint.y);
-  }
+  if (anchorPoint) animatedSprite.anchor.set(anchorPoint.x, anchorPoint.y);
+
   animatedSprite.position.set(x, y);
   animatedSprite.scale.set(scale, scale);
   if (animate.animate) {
@@ -142,7 +145,7 @@ export async function createAnimatedSprite(
   return animatedSprite;
 }
 
-export async function createText(
+export function createText(
   x: number,
   y: number,
   anchorPoint: AnchorPoint,
@@ -151,11 +154,10 @@ export async function createText(
   size = 1,
   align: AlignType | null = null,
   label: string = "newText",
-): Promise<Text> {
+): Text {
   const style = STYLE[styleType](size);
-  const font = await Assets.load("/fonts/Roboto_Condensed-Regular.ttf");
-  style.fontFamily = font.family.split(" ")[0];
   style.fontSize = style.fontSize * size;
+
   if (align) style.align = align;
   const textData = new Text({ text, style });
   textData.label = label;
@@ -165,7 +167,7 @@ export async function createText(
   return textData;
 }
 
-export async function createTiledSprite(
+export function createTiledSprite(
   image: string,
   x: number,
   y: number,
@@ -173,16 +175,15 @@ export async function createTiledSprite(
   height = 32,
   textureSize = 1,
   interpolation = false,
-): Promise<TilingSprite> {
-  const texture = await Assets.load("/public/assets/" + image + ".png");
+): TilingSprite {
+  const texture = Texture.from(assetPath + image + ".png");
   const tile = new TilingSprite({ texture });
   tile.position.set(x, y);
   tile.tileScale.set(textureSize, textureSize);
   tile.width = width;
   tile.height = height;
-  if (!interpolation) {
-    tile.texture.source.scaleMode = "nearest";
-  }
+  if (!interpolation) tile.texture.source.scaleMode = "nearest";
+
   return tile;
 }
 

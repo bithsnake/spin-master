@@ -18,6 +18,8 @@ import {
   BG_CONTAINER,
   GAME_CONTAINER,
   INSTANCE_CONTAINER,
+  PICKER,
+  PLAY_BUTTON,
   REEL_CONTAINER,
   UI_CONTAINER,
   WIN_INSTANCE,
@@ -31,17 +33,28 @@ import { canvasCenterX, choose, initSound } from "./utilities/tools";
 import { spinmaster, track2 } from "./utilities/soundLibrary";
 import {
   assetPath,
+  PLAY_DISABLED,
+  REEL,
   SYM01,
   SYM02,
   SYM03,
   SYM04,
   SYM05,
   SYM06,
+  TILE01,
+  WIN_BG,
 } from "./utilities/imageLibrary";
+import { loadFontAssets } from "./utilities/style-library";
 
 (async () => {
   await Assets.init();
   await Assets.load([
+    assetPath + PLAY_BUTTON + ".png",
+    assetPath + PLAY_DISABLED + ".png",
+    assetPath + WIN_BG + ".png",
+    assetPath + PICKER + ".png",
+    assetPath + TILE01 + ".png",
+    assetPath + REEL + ".png",
     assetPath + SYM01 + ".png",
     assetPath + SYM02 + ".png",
     assetPath + SYM03 + ".png",
@@ -49,6 +62,8 @@ import {
     assetPath + SYM05 + ".png",
     assetPath + SYM06 + ".png",
   ]);
+
+  await loadFontAssets();
 
   const app = new Application();
 

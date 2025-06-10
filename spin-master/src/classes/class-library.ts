@@ -184,7 +184,7 @@ export abstract class GameObject implements IRenderable, IUpdatable {
 
 export abstract class UIText extends GameObject {
   declare self: Text;
-  value: string;
+  declare value: string;
   timer = 0;
   constructor(text: Text, value: string, global: GlobalState) {
     super();
@@ -208,7 +208,7 @@ export abstract class UIText extends GameObject {
 
 // --- INTERACTIVE CLASSES ---
 export class PointerInstance extends GameObject {
-  self: AnimatedSprite;
+  declare self: AnimatedSprite;
   mousePosition: Point = { x: 0, y: 0 };
   mouseDown: { hold: boolean; event: MouseEvent | null } = {
     hold: false,
@@ -323,15 +323,12 @@ export class ReelInstance extends GameObject {
     ];
 
     this.slotTextures.forEach((texture) => {
-      const name = texture.label!.split("/")[5].split(".")[0];
+      const name = texture.label!.split("/")[4].split(".")[0];
       texture.label = name;
     });
+
     this.addSlots();
-
-    (async () => {
-      await this.addSymbols(global);
-    })();
-
+    this.addSymbols(global);
     this.initDefaultSizes();
   }
 
@@ -347,7 +344,7 @@ export class ReelInstance extends GameObject {
     },
   ) {
     const { anchorPoint, size, reelSprite, symbolIds, global } = options;
-    const reel = await createSprite(x, y, anchorPoint, size, reelSprite);
+    const reel = createSprite(x, y, anchorPoint, size, reelSprite);
     return new ReelInstance(reel, symbolIds, global);
   }
   update(global: { inst: GlobalState }): void {
@@ -507,20 +504,13 @@ export class ReelInstance extends GameObject {
         this.speed = this.speedMax;
 
         if (
-          !global.inst.gameRoundEnded &&
-          !global.inst.canPress &&
-          global.inst.currentBalance <= 0
-        ) {
-          if (global.inst.soundtrack?.playing()) {
-            global.inst.soundtrack?.fade(0.5, 0, 1000);
-          }
-        }
-
-        if (
           global.inst.currentBalance <= 0 &&
           !global.inst.canPress &&
           !global.inst.gameRoundEnded
         ) {
+          if (global.inst.soundtrack?.playing()) {
+            global.inst.soundtrack?.fade(0.5, 0, 1000);
+          }
           global.inst.gameRoundEnded = true;
 
           setTimeout(() => {
@@ -683,10 +673,10 @@ export class ReelInstance extends GameObject {
     this.slotData = this.slotContainer.children.map((slot) => <Graphics>slot);
   }
 
-  private async addSymbols(global: GlobalState): Promise<void> {
+  private addSymbols(global: GlobalState): void {
     let index = 0;
     for (const symbol of this.symbolIds) {
-      const symbolSprite = await createSprite(
+      const symbolSprite = createSprite(
         6,
         0,
         "topLeft",
@@ -725,15 +715,11 @@ export class ReelInstance extends GameObject {
         });
 
         this.symbolContainer.children.sort((a, b) => {
-          const firstIndex = +a.label.split("_")[1];
-          const compareIndex = +b.label.split("_")[1];
-          return firstIndex - compareIndex;
+          const indexA = +a.label.split("_")[1];
+          const indexB = +b.label.split("_")[1];
+          return indexA - indexB;
         });
 
-        this.lastYPosition = Math.abs(
-          this.symbolsData[this.symbolsData.length - 1].yStart,
-        );
-        this.firstPosition = Math.abs(this.symbolsData[0].yStart);
         this.timerMax = global.spinTimerSecondsMax;
         this.timer = this.timerMax;
 
@@ -758,7 +744,7 @@ export class ReelInstance extends GameObject {
 }
 
 export class ButtonInstance extends GameObject {
-  self: Sprite | AnimatedSprite;
+  declare self: Sprite | AnimatedSprite;
   action: (
     global: GlobalState,
     selfInst: ButtonInstance,
@@ -834,7 +820,7 @@ export class ButtonInstance extends GameObject {
 // --- UI CLASSES ---
 export class UIScrollingText extends UIText {
   declare self: Text;
-  value: string;
+  declare value: string;
   timer = 0;
   dir: Direction = "up";
   private constructor(
@@ -861,7 +847,7 @@ export class UIScrollingText extends UIText {
     },
   ) {
     const { label, anchorPoint, dir, value, global } = options;
-    const text = await createText(
+    const text = createText(
       x,
       y,
       anchorPoint,
@@ -906,8 +892,8 @@ export class UIScrollingText extends UIText {
 }
 
 export class UIGeneralText extends GameObject {
-  self: Text;
-  title: string;
+  declare self: Text;
+  declare title: string;
   value = "";
   private constructor(text: Text) {
     super();
@@ -919,7 +905,7 @@ export class UIGeneralText extends GameObject {
 
   static async create(x: number, y: number, options: TextOptions) {
     const { anchorPoint, title, textSize, label } = options;
-    const text = await createText(
+    const text = createText(
       x,
       y,
       anchorPoint || "topLeft",
@@ -945,7 +931,7 @@ export class UIGeneralText extends GameObject {
 }
 
 export class BackGroundInstance extends GameObject {
-  self: TilingSprite;
+  declare self: TilingSprite;
   constructor(x: number, y: number, bg: TilingSprite) {
     super();
     this.self = bg;

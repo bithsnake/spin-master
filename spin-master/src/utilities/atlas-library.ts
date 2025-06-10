@@ -1,4 +1,6 @@
 import { AtlasData } from "../types/types";
+import { PICKER, PLAY_BUTTON } from "./container-name-library";
+import { assetPath } from "./imageLibrary";
 
 export const pointerAtlasHand: AtlasData = {
   frames: {
@@ -25,7 +27,7 @@ export const pointerAtlasHand: AtlasData = {
     app: "http://www.codeandweb.com/texturepacker",
     version: "1.0",
     name: "picker",
-    image: "/public/assets/picker.png",
+    image: assetPath + PICKER + ".png",
     format: "RGBA8888",
     size: { w: 64, h: 32 },
     scale: "1",
@@ -35,7 +37,7 @@ export const pointerAtlasHand: AtlasData = {
   },
 };
 
-export const POINTER_HAND_ANIMS: { [key: string]: string } = {
+export const POINTER_HAND_ANIMS = {
   pick: "pick",
 };
 
@@ -64,7 +66,7 @@ export const playButtonAtlas: AtlasData = {
     app: "http://www.codeandweb.com/texturepacker",
     version: "1.0",
     name: "playButton",
-    image: "/public/assets/PLAY_BUTTON.png",
+    image: assetPath + PLAY_BUTTON + ".png",
     format: "RGBA8888",
     size: { w: 370, h: 185 },
     scale: "1",
@@ -74,6 +76,6 @@ export const playButtonAtlas: AtlasData = {
   },
 };
 
-export const PLAY_BUTTON_ANIMS: { [key: string]: string } = {
-  normal: "pick",
-};
+// export const PLAY_BUTTON_ANIMS: { [key: string]: string } = {
+//   normal: "pick",
+// };
