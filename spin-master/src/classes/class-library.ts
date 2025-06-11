@@ -58,7 +58,6 @@ import {
   SYM05,
   SYM06,
 } from "../utilities/imageLibrary";
-
 export class GlobalState implements IUpdatable {
   app!: Application;
   canPress = false;
@@ -71,7 +70,7 @@ export class GlobalState implements IUpdatable {
   count = 0;
   time = 0;
   elapsedTime = 0;
-  balanceInit = 2;
+  balanceInit = 100;
   currentBalance = this.balanceInit;
   currentWinAmount = 0;
   currentWinAmountBuffer = 0;
@@ -289,18 +288,16 @@ export class ReelInstance extends GameObject {
   quickStop = false;
   timer = 0;
   timerMax = 0;
-  firstPosition = 0;
-  lastYPosition = 0;
   speedMax = 128;
   speed = this.speedMax;
   symbolContainer: Container = new Container();
   symbolContainerBuffer: Container = new Container();
   slotContainer: Container = new Container();
-  hasSpinnedReel = false;
   randomizePosition = Math.round(Math.random());
   slotData: Graphics[] = [];
-  wasUsed = false;
   slotTextures: Texture[] = [];
+  moveTowardsPosition = 0;
+  randomizeCounter = 0;
 
   constructor(reel: Sprite, symbolIds: FromSprite[], global: GlobalState) {
     super();
@@ -356,106 +353,56 @@ export class ReelInstance extends GameObject {
     const gl = global.inst;
     if (!gl.gameCanRun) return;
 
+    const symbolCount = this.symbolContainer.children.length;
+    const symbolHeight = this.symbolContainer.children[0].height;
+
     // spin
     if (gl.spinTimerSeconds > 0 && gl.isSpinning) {
       global.inst.canPress = false;
       this.timer = approach(this.timer, 0, 0.01);
-      let index = 0;
 
-      if (this.hasSpinnedReel) {
-        this.hasSpinnedReel = false;
-        this.wasUsed = false;
+      this.speed = 64 * (this.timer * 0.5);
+      this.moveTowardsPosition += this.speed / symbolHeight;
+
+      if (this.moveTowardsPosition >= symbolCount) {
+        this.moveTowardsPosition -= symbolCount;
       }
 
-      const lastSymbolIndex = this.symbolContainer.children.length - 1;
-
-      const reelGlobalBottomPoint =
-        this.self.getGlobalPosition().y + this.self.height;
-
-      // pressed play button while spinning to stop the reel
+      // if you stop the wheel
       if (this.quickStop) {
-        let index = 0;
-        let _index = 0;
-        const found: { sprite: { index: number; sprite: Sprite }[] } = {
-          sprite: [],
-        };
-        for (const symbol of this.symbolContainer.children) {
-          for (const slot of this.slotData) {
-            index = _index;
-            const symPos = symbol.getGlobalPosition();
-            const symbolCenter = {
-              x: symPos.x + symbol.width / 2,
-              y: symPos.y + symbol.height / 2,
-            };
-            if (pointMeeting({ x: symbolCenter.x, y: symbolCenter.y }, slot)) {
-              found.sprite.push({ index: _index, sprite: <Sprite>symbol });
-            }
-          }
+        // move forward + 3 steps and wrap if needed, i.e if paused the reel
+        // '3 previoussymbols should go out of the screen'.
+        this.moveTowardsPosition = (this.moveTowardsPosition + 3) % symbolCount;
 
-          if (found.sprite.length === 0) {
-            _index++;
-            continue;
-          } else if (found.sprite.length === 3) {
-            // randomize the 3 previous symbols i.e let the 3 previous symbols go out of the screen
-            if (
-              found.sprite[0].index - 1 > 0 &&
-              found.sprite[1].index - 1 > 0
-            ) {
-              this.randomizeSymbolTextues(this.symbolContainer, {
-                from: found.sprite[0].index - 1,
-                to: found.sprite[2].index - 3,
-              });
-            }
-          }
-
-          gl.spinTimerSeconds = 0;
-          if (index === lastSymbolIndex) break;
-          index++;
+        gl.spinTimerSeconds = 0;
+        // update symbols y positions
+        for (let i = 0; i < symbolCount; i++) {
+          const symbol = this.symbolContainer.children[i];
+          symbol.y = this.setSymbolPosition(i, symbolHeight, symbolCount);
         }
       }
 
-      for (const symbol of this.symbolContainer.children) {
-        if (this.quickStop) {
-          this.quickStop = false;
-          // continue;
-        }
-        // for performance (hopefully)
-        hideSymbolIfOutside(<Sprite>symbol, this.self);
-
-        this.speed = this.speedMax * this.timer * 0.5;
-        symbol.position.y += this.speed;
-
-        const tailSymbolData = {
-          y: this.symbolContainer.children[lastSymbolIndex].position.y,
-          height: this.symbolContainer.children[lastSymbolIndex].height,
-          lastSymbolUid: this.symbolContainer.children[lastSymbolIndex].uid,
-        };
-
-        const symbolYPoint = tailSymbolData.y + tailSymbolData.height;
-
-        const isPastReelBottom =
-          Math.floor(symbolYPoint) > reelGlobalBottomPoint;
-
-        // last symbols is below the reel
-        if (
-          tailSymbolData.lastSymbolUid === symbol.uid &&
-          index === lastSymbolIndex &&
-          isPastReelBottom
-        ) {
-          // reset all symbol y-positions
-          this.resetSymbolPositions(
-            this.symbolContainer,
-            this.symbolContainerBuffer,
-          );
-
-          // randomize all symbol textures!
-          this.randomizeSymbolTextues(this.symbolContainer);
-        }
-        index++;
+      if (this.quickStop) {
+        return;
       }
+
+      // update symbols y positions
+      for (let i = 0; i < symbolCount; i++) {
+        const symbol = this.symbolContainer.children[i];
+        symbol.y = this.setSymbolPosition(i, symbolHeight, symbolCount);
+      }
+      if (
+        this.randomizeCounter >= this.symbolContainer.children.length - 1 &&
+        gl.spinTimerSeconds > 1
+      ) {
+        this.randomizeCounter = 0;
+        this.randomizeSymbolTextues(this.symbolContainer);
+      }
+      this.randomizeCounter++;
     } else {
-      // stop
+      // stop, smoothly go back to position
       if (gl.isSpinning) {
+        this.quickStop = false;
         const rcc = this.symbolContainer.children;
 
         // correct all symbol y-positions
@@ -551,19 +498,19 @@ export class ReelInstance extends GameObject {
       }
       this.timer = this.timerMax;
     }
+  }
 
-    function hideSymbolIfOutside(symbol: Sprite, self: Sprite): void {
-      if (
-        symbol.position.y + symbol.height < 0 ||
-        symbol.position.y > self.height
-      ) {
-        symbol.renderable = false;
-        symbol.visible = false;
-      } else {
-        symbol.renderable = true;
-        symbol.visible = true;
-      }
-    }
+  setSymbolPosition(
+    i: number,
+    symbolHeight: number,
+    symbolCount: number,
+  ): number {
+    // wrap if over y treshold and keep spacing, set 3 positions above the reel if we go over
+    const yOffset = 3;
+    let pos = this.moveTowardsPosition + i;
+    if (pos >= symbolCount) pos -= symbolCount;
+
+    return Math.floor(pos * symbolHeight - symbolHeight * yOffset);
   }
 
   /**
@@ -575,16 +522,13 @@ export class ReelInstance extends GameObject {
     container: Container,
     changeOnIndex?: { from: number; to: number },
   ): void {
-    let index = 0;
-
     if (changeOnIndex) {
       for (let i = changeOnIndex.from; i <= changeOnIndex.to; i++) {
         const newTexture = getRandomTexture(this.slotTextures);
-        (container.children[index] as Sprite).texture = newTexture;
+        (container.children[i] as Sprite).texture = newTexture;
         if (newTexture.label !== undefined) {
-          container.children[index].label = newTexture.label;
+          container.children[i].label = newTexture.label;
         }
-        index++;
       }
     } else {
       for (const symbol of container.children) {
@@ -598,14 +542,6 @@ export class ReelInstance extends GameObject {
     }
     function getRandomTexture(slotTextures: Texture[]): Texture {
       return slotTextures[Math.floor(Math.random() * slotTextures.length)];
-    }
-  }
-
-  resetSymbolPositions(container: Container, bufferContainer: Container): void {
-    for (let i = 0; i < container.children.length; i++) {
-      const symbolA = container.children[i];
-      const symbolB = bufferContainer.children[i];
-      symbolA.position.y = symbolB.position.y;
     }
   }
 
@@ -660,9 +596,6 @@ export class ReelInstance extends GameObject {
       const colMask = new Graphics()
         .rect(0, 0, this.self.width, slotHeight)
         .fill(0xff0000);
-      // const x = this.self.x;
-      // colMask.circle(x, 0, 4).fill(0x000000);
-      // colMask.circle(x, slotHeight, 4).fill(0x000000);
       colMask.alpha = 0;
       colMask.position.set(0, slotYTop);
       this.slotContainer.addChild(colMask);
@@ -675,10 +608,11 @@ export class ReelInstance extends GameObject {
 
   private addSymbols(global: GlobalState): void {
     let index = 0;
+    // this.symbolIds.length = 4;
     for (const symbol of this.symbolIds) {
       const symbolSprite = createSprite(
         6,
-        0,
+        6,
         "topLeft",
         { w: 1, h: 1 },
         symbol,
@@ -693,11 +627,11 @@ export class ReelInstance extends GameObject {
       //   0x000000,
       //   0xff0000,
       //   0xffffff,
-      //   0.5,
       // );
+      // colBox.alpha = 0.4;
       // symbolSprite.addChild(colBox);
       symbolSprite.position.y =
-        symbolSprite.height * 2 + -index * symbolSprite.height;
+        symbolSprite.height * 2 + -index * symbolSprite.height + 6;
       this.symbolContainer.addChild(symbolSprite);
 
       this.symbolsData.push({

@@ -196,10 +196,6 @@ export function approach(target: number, value: number, increment: number) {
     if (target < value) return value;
   }
   return target;
-
-  // if (target < value) return target + increment;
-  // if (target > value) return target - increment;
-  // return target;
 }
 
 export function choose<T>(...args: T[]): T {
