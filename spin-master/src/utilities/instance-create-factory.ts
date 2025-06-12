@@ -20,28 +20,18 @@ import { SYMBOLS_LIST } from "./symbols-library";
 import { BALANCE_INSTANCE, WIN_INSTANCE } from "./container-name-library";
 
 export async function createGuiTextInstances(global: GlobalState) {
-  const canvasCenter = {
-    x: canvasCenterX(global.app),
-    y: canvasCenterY(global.app),
-  };
-
-  const GUIBalanceTextInstance = await instanceCreate(
-    canvasCenter.x - 580,
-    32,
-    UIGeneralText,
-    {
-      label: BALANCE_INSTANCE,
-      anchorPoint: "topLeft",
-      title: "Balance: ",
-      textSize: 1.5,
-    },
-  );
+  const GUIBalanceTextInstance = await instanceCreate(32, 32, UIGeneralText, {
+    label: BALANCE_INSTANCE,
+    anchorPoint: "topLeft",
+    title: "Balance: ",
+    textSize: 1.5,
+  });
 
   GUIBalanceTextInstance.title = "Balance: $";
 
   const GUIWinTextInstance = await instanceCreate(
-    canvasCenter.x + 225,
     32,
+    global.app.canvas.height - 128,
     UIGeneralText,
     {
       label: WIN_INSTANCE,
@@ -84,20 +74,17 @@ export async function createInteractiveInstances(global: GlobalState) {
 
   const playButtonInstance = await instanceCreate(
     canvasCenter.x,
-    canvasCenter.y + 280,
+    global.app.canvas.height,
     ButtonInstance,
     {
       atlasData: playButtonAtlas,
-      anchorPoint: { x: 0, y: 0 },
+      anchorPoint: { x: 0.57, y: 1 },
       size: 1,
       global: global,
       action: playButtonAction,
       other: reelInstance,
     },
   );
-  const p = playButtonInstance;
-  p.self.position.x = canvasCenter.x - p.self.width / 2 - 8;
-
   return [reelInstance, playButtonInstance, pointerHandInstance];
 }
 

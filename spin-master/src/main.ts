@@ -73,8 +73,8 @@ import { loadFontAssets } from "./utilities/style-library";
     backgroundColor: 0x000000,
     backgroundAlpha: 0.99,
   });
-  app.canvas.style.position = "absolute";
-  app.renderer.resolution = window.devicePixelRatio || 1;
+
+  app.renderer.resolution = window.devicePixelRatio / window.devicePixelRatio;
 
   // DEV TOOLS
   initDevtools({ app });
