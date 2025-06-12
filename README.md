@@ -2,8 +2,7 @@
 
 ## A Simple one reel slot machine, only for you!
 
-![image](https://github.com/user-attachments/assets/deec2a0f-9d74-4df4-b7b3-ce140a09104f)
-
+<img width="1728" alt="Screenshot 2025-06-12 at 15 03 44" src="https://github.com/user-attachments/assets/336125b5-8341-412f-8a2f-d63d5da6d39a" />
 
 
 Adjust the initial balance amount by adjusting the property **balanceInit** on the **GlobalState**  class
